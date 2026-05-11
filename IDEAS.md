@@ -74,12 +74,45 @@ A living scratchpad. Anything goes here — half-baked ideas, things to investig
 - Recurring market: ~2 million weddings/year in the US.
 - Less competition than general dance courses; the existing wedding-prep online offerings are mostly poor production quality.
 
-**Course structure ideas:**
-- **Song-agnostic fundamentals** — connection, frame, how to look good in slow movement, how to handle the dip everyone wants to do. Probably 60-90 minutes of core content.
-- **Choreography templates** — pre-built routines for several common time signatures and tempos. Couples pick the one closest to their song.
-- **"Customize to your song" framework** — teach them how to count their specific song and map the choreography to it.
-- **The big moments** — entrance, the dip, the spin, the kiss timing, exit. These are the moments wedding photos capture.
-- **Optional add-on: video review** — couples submit a clip of their practice for personalized feedback. Premium tier, ~$99-199 add-on, real labor for the team but high perceived value.
+**Course structure — three styles, pick yours.**
+
+The course is built around three foundational country-western styles: **polka, two-step, and waltz.** Each is its own module. Couples sample all three to figure out which one fits their song and their comfort level, then commit to one and learn the full choreographed first dance in that style. The "pick your style" framing is the unique value-add — most couples have no idea which dance their first-dance song actually is, and just teaching styles in isolation doesn't solve that problem. *This* does.
+
+**Module 1 — Polka**
+- *Style teaching:* characteristic bounce, hold variations, count pattern, the "feel" of polka vs. the other two.
+- *Recommended song list:* curated across traditional Texas-German polka, classic country polkas (George Strait's *Adalida*, Brave Combo, Texas Tornados), and contemporary country tracks in polka time. Actual list to be assembled by team instructors who know the catalog cold.
+- *Move vocabulary:* 6-10 named moves graded by difficulty.
+- *Transitions:* how to flow from one move into the next without the "reset" gaps that look awkward on wedding video.
+- *Routine at three difficulty levels:*
+  - **Beginner** (~4 weeks of practice realistic, no prior dance) — minimal moves, lots of structured repetition, simple footwork.
+  - **Intermediate** (~6-8 weeks) — fuller move vocabulary, a signature moment the photographer can anticipate.
+  - **Advanced** (12+ weeks, some dance background) — turns, a dip or small lift, a more demanding floor pattern.
+- The routine framework is **song-flexible:** same structural skeleton, adaptable across any song in the recommended list of similar tempo. Couples can use it for their first dance and then re-deploy it at another wedding or anniversary later.
+
+**Module 2 — Two-step**
+- Same structure: style teaching, recommended songs, move vocabulary, transitions, three-level routine.
+- Likely the most-used module — two-step is the safest default for country first dances, and most modern country first-dance songs (*Neon Moon*, *Check Yes or No*, *I Cross My Heart*, *Tennessee Whiskey*, *Marry Me*) map cleanly to it. Deepest song catalog of the three.
+
+**Module 3 — Waltz**
+- Same structure. 3/4 time changes everything — this module spends extra time on the "feel" of waltz vs. the four-count dances. Connection and frame matter more here than in the other two.
+- Recommended song list focuses on classic country waltzes (*Tennessee Waltz*, *Could I Have This Dance*, *Amarillo by Morning*, *Waltz Across Texas*) plus contemporary 3/4 country tracks couples might not realize are waltzable.
+- The "looks cinematic for the photos" angle — waltzes are arguably the most photogenic of the three on still photography, and it's worth telling couples that explicitly.
+
+**Pre-module: the "which style is my song?" diagnostic**
+A short module before the three style modules. Two paths:
+- *They already have a song* → "Here's how to tell what style it is" — counting tempo, spotting the time signature, recognizing the beat pattern. A 5-minute test of "play your song and follow along" lands on a style recommendation.
+- *They haven't picked a song* → "Here's a flowchart: vibe you want → style → song shortlist" using the curated lists from each module.
+
+This diagnostic is the magic of the structure. It's not three dance lessons — it's *the system for picking your first dance.* That's what justifies the price.
+
+**Cross-style fundamentals (taught once, applies to all three):**
+- Connection and frame without looking robotic.
+- Looking good in slow movement — most first-dance songs are slower than couples expect, and slow is hard.
+- The big moments wedding photos capture: entrance, the dip, the spin, the kiss timing, exit.
+- Camera awareness — where to face for the photographer and videographer.
+- "Recovery moves" — how to fix a missed beat or a stumble without it being visible.
+
+**Optional premium add-on: personalized video review.** Couples submit a clip of their practice for personalized feedback from a team instructor. ~$99-199 add-on per submission, real labor for the team but extremely high perceived value at the price. Could be a recurring revenue cap for couples who buy multiple reviews as their wedding approaches.
 
 **Differentiators vs. other wedding-dance content online:**
 - Production quality matching the team's existing video work.
