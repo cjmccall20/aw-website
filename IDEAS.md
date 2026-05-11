@@ -6,15 +6,49 @@ A living scratchpad. Anything goes here — half-baked ideas, things to investig
 - `[idea]` — not yet validated
 - `[exploring]` — actively figuring out
 - `[decided]` — direction is set, just not built
+- `[v1.1]` — explicitly deferred from v1; revisit after the first launch
 - `[building]` — in progress
 - `[shipped]` — done
 - `[parked]` — looked at and set aside (with a note on why, so we don't re-litigate)
 
 ---
 
+## Next-iteration to-do (after v1 launches)
+
+These were considered for v1, scoped out, and earmarked for the next round of work.
+
+### Social media management tab `[v1.1]`
+
+**Goal:** consolidate the team's social-media work (Instagram, TikTok, YouTube, Facebook, X) into one place so the performance/PR officer doesn't have to juggle five separate apps.
+
+**Two layers of value:**
+1. **Embedding latest social content on the public site.** Easy — iframe embeds from each platform on the homepage / `/watch`. Could ship in v1 if a small piece; deferring to keep v1 scope tight.
+2. **Cross-platform posting from one place.** This is the bigger workstream. Three rough approaches:
+   - **Buffer / SaaS** — ~$30/mo for 5 channels. Easiest, zero dev work, can launch immediately. Just link to it from the portal. Officer composes in Buffer, posts to all platforms. Downside: monthly cost + officer learns a separate tool.
+   - **Portal-native Social Drafter tab with AI variant generation** — officer writes one post; AI generates platform-specific variants (IG caption, TikTok caption, X tweet, FB post, YT description); officer reviews and posts. Direct posting via each platform's API where available; TikTok stays manual (their Content Publishing API is gated). ~$10/mo AI cost, more dev work upfront. Re-opens the "AI in production system" question from v6, but in a low-stakes context (drafting marketing, not client emails).
+   - **Self-hosted open source** (Mixpost, Postiz) — free but requires hosting + ongoing maintenance.
+
+**Decision deferred.** Most likely path is "team picks Buffer or similar in the interim while we build the portal-native version when scope allows."
+
+### Online courses + Aggie Wranglers Coaching `[v1.1]`
+
+Captured as their own product workstream below. **Not part of the website/portal v1.** Build the portal first; tackle commerce + content production separately once the team has bandwidth.
+
+Key facts that affect the future build:
+- TAMU SOFC handles ALL payments — no Stripe direct. Marketplace eStore (sofctamu.estore.flywire.com) is the channel.
+- For online courses sold via Marketplace: **course platform must be locked to only-enroll-with-code**, so people can't bypass SOFC by paying the course platform directly. Two viable approaches:
+  - **Course price = $0 on Teachable + enrollment-code required.** SOFC sells the codes for $99. Direct purchase impossible since direct purchase is $0 and the course won't load without a code.
+  - **Course price set to absurdly high ($99,999) + 100%-off codes.** Direct purchase technically possible but priced out of reality. Backup if "free + code required" isn't supported by the chosen platform.
+  - **Self-host inside the team portal** under a special "customer" user role. Most control; most work; revisit if third-party platforms cause friction.
+- **SOFC does NOT process donations.** Donations remain a separate, team-handled channel. Portal captures intent + post-event status only.
+
+---
+
+---
+
 ## Big new ideas
 
-### Online course on Coursera/Udemy/Teachable: country-western dance fundamentals `[idea]`
+### Online course on Teachable/Thinkific (or similar): country-western dance fundamentals `[v1.1]`
 
 **The pitch.** Package the team's expertise into a self-paced online course that anyone in the country can buy. Detaches lesson revenue from the constraint of "students have to live in College Station and show up at the building Tuesday night." If it works at any scale, it's effectively passive revenue for the org from a one-time production effort.
 
@@ -28,25 +62,21 @@ A living scratchpad. Anything goes here — half-baked ideas, things to investig
 1. **Country-Western Dance Fundamentals** — two-step, jitterbug basics, partner work, social-dance etiquette, popular variations. Target audience: country music fans who want to learn to dance, people moving to Texas, casual social dancers. 4-8 hours of content.
 2. **Wedding First-Dance Prep** — see separate entry below; sufficiently different audience and structure that it's worth its own course.
 
-**Platforms to compare:**
-- **Coursera** — Highest prestige, but requires an institutional partnership (TAMU, typically through a school/department). Probably not a fit for a student org acting independently. Worth a conversation if a TAMU faculty advisor / department is open to co-branding.
-- **Udemy** — Easiest to publish on; aggressive discounting tends to push prices to $10-15/course; lowest barrier to entry but lowest per-sale revenue.
-- **Teachable / Thinkific / Kajabi** — Self-hosted course platforms. Team controls pricing (could be $99-199 for the fundamentals course; $199-399 for wedding prep). Higher per-sale revenue, but team owns marketing/traffic entirely. Probably the right fit.
-- **YouTube + Patreon hybrid** — Free intro content drives sign-ups; deep content behind Patreon. Lower friction, builds an audience, slower revenue ramp.
-- **Embedded directly on aggiewranglers.com** — Roll our own with Stripe + video hosting. Maximum control + revenue, more work. Could layer on later once we have the audience.
+**Platforms (winnowed via v6 research):**
+- **Teachable / Thinkific / Kajabi** — Self-hosted course platforms. Team controls pricing. **Required configuration: course locked to enrollment-code-only access** so direct purchase on the platform is impossible. SOFC Marketplace sells the codes. ~$30-50/mo platform cost; codes generated in bulk. **This is the likely target.**
+- **Coursera** — Highest prestige but requires institutional partnership (TAMU faculty/department co-branding). Not a fit for a student org acting independently. Park unless a faculty advisor is on board.
+- **Udemy** — Doesn't support "code-required enrollment" cleanly; their model pushes aggressive discounting to $10-15. Doesn't fit the SOFC-routed-only requirement. Skip.
+- **Self-host inside the team portal** — Highest control, most build work. Customers get a special user role that unlocks the course module. No third-party content host. Revisit if Teachable-class platforms cause friction.
+- **YouTube + Patreon hybrid** — Park; doesn't route through SOFC and doesn't fit the team's payment constraints.
 
-**Things to investigate before building (in rough priority order):**
-1. **TAMU SOFC / finance rules.** Student organizations at A&M route money through the Student Organization Finance Center. Need to verify:
-   - Can the org earn revenue from instructional content sold to non-members?
-   - How is online-course revenue categorized (program revenue / educational service / something else)?
-   - UBIT (unrelated business income tax) implications — at what threshold does this matter for a student org?
-   - What's the path from "Stripe collects payment" → "money lands in the Wranglers account"? Direct Stripe-to-SOFC integration, periodic deposits, or something else?
-   - Are there restrictions on how the revenue is used (must fund team activities, can't pay individuals, etc.)?
-2. **IP ownership of choreography + instructional content.** Who owns it — the team as an org, the individual instructors on camera, TAMU? Matters because graduating instructors might have claims, and TAMU may have policies about content produced under the student-org umbrella.
-3. **Risk of brand dilution if a course is bad.** Production quality has to match the team's existing video work. Bad lighting / muddy audio / shaky framing would undercut the credibility the team has earned.
-4. **Officer-transition durability.** If the course depends on specific instructors being on camera, what happens when they graduate? Does the course need to be re-shot every 2-3 years, or is the curriculum format-agnostic enough that new instructors can be swapped in?
-5. **Marketing channel.** Without paid acquisition, who finds the course? Plausible channels: the team's existing social presence (Instagram/TikTok/YouTube — the Wranglers have real reach here already), country-music influencer cross-promotion, partnership with country radio stations, the music-video collaborations.
-6. **Refund/support policy.** Who handles "I can't access my course" emails? Folds into the same operational-burden question as everything else.
+**Things to investigate (revised post-v6 research):**
+1. **Course-platform lockdown configuration.** Confirm the chosen platform supports either "free course + required enrollment code" or "absurd base price + 100%-off promo codes" as a mechanism to force all purchases through SOFC Marketplace. Most do.
+2. **SOFC Marketplace "access code" SKU type.** Marketplace sells merchandise, dues, event registration, and donations natively. Selling an access code is closest to a "merchandise" SKU. Worth a confirmation conversation with sofcecommerce@tamu.edu before committing to production effort — but parking that conversation for now.
+3. **IP ownership of choreography + instructional content.** Who owns it — the team as an org, the individual instructors on camera, TAMU? Matters because graduating instructors might have claims, and TAMU may have policies about content produced under the student-org umbrella.
+4. **Risk of brand dilution if a course is bad.** Production quality has to match the team's existing video work. Bad lighting / muddy audio / shaky framing would undercut the credibility the team has earned.
+5. **Officer-transition durability.** If the course depends on specific instructors being on camera, what happens when they graduate? Does the course need to be re-shot every 2-3 years, or is the curriculum format-agnostic enough that new instructors can be swapped in?
+6. **Marketing channel.** Without paid acquisition, who finds the course? Plausible channels: the team's existing social presence (Instagram/TikTok/YouTube — real reach already), country-music influencer cross-promotion, partnership with country radio stations, the music-video collaborations.
+7. **Refund/support policy.** Who handles "I can't access my course" emails? Folds into the same operational-burden question as everything else.
 
 **What would need to be true for it to work:**
 - TAMU's finance rules permit this kind of revenue (or can be worked around — e.g., partnering with a separate entity that handles commerce).
@@ -64,7 +94,7 @@ A living scratchpad. Anything goes here — half-baked ideas, things to investig
 
 ---
 
-### Online course #2: Wedding first-dance prep `[idea]`
+### Online course #2: Wedding first-dance prep `[v1.1]`
 
 **The pitch.** Couples spend a *lot* on wedding lessons — typically $50-150/hr for in-person instruction over 4-8 sessions, often $400-1200 total per couple. Many couples are anxious about their first dance and motivated to invest. An online course at $199-399 priced below the cost of even one in-person session, accessible from anywhere, hits a clear market.
 
@@ -128,7 +158,7 @@ This diagnostic is the magic of the structure. It's not three dance lessons — 
 
 ---
 
-### Aggie Wranglers Coaching — personalized video review service `[idea]`
+### Aggie Wranglers Coaching — personalized video review service `[v1.1]`
 
 **The pitch.** A standalone service: pay to send the team a video of you dancing and get back personalized, expert feedback. Initially marketed to wedding couples as an add-on to the wedding first-dance course, but the underlying service has room to grow into its own product line that survives independent of the courses entirely.
 
@@ -248,6 +278,8 @@ Things that don't justify their own section yet — capture here, promote when t
 - **Member spotlight rotation** — homepage shows a randomly featured current member from the roster. Drives the team to keep bios fresh.
 - **Public lesson waitlist** — when a session is full, capture interested students for the next cycle. Low effort; converts well.
 - **Bus/charter logistics block on confirmed performance pages** — call time, departure point, expected return. Lives on the calendar event detail.
+- **Donation collection workflow research** — portal captures donation interest at request time and post-event status (Received / Declined / No response / Pending) for institutional memory. Actual collection is handled offline by the current team. Worth a follow-up: what channel does the team currently use, and is there friction worth solving with portal tooling? (Reminder/follow-up emails to donors? Standardized "donation requested" note in the confirmation email?)
+- **Embed social media on public site** — Instagram / TikTok / YouTube / X / Facebook all have iframe embeds. Latest 3-6 posts on the homepage; embedded videos on `/watch`. Smaller piece of the broader v1.1 social tab; could ship independently if a few hours' work justifies it.
 
 ---
 

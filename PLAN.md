@@ -3,11 +3,85 @@
 > Replatform aggiewranglers.com off Wix into a unified system with two surfaces:
 > a polished public site at **aggiewranglers.com** and an authenticated team portal at **team.aggiewranglers.com** that doubles as the CRUD app, ops console, and source of truth for everything the public site shows.
 
-**Stack at a glance:** Next.js on **Vercel** · **Supabase** (Postgres + Auth + Storage) as the single source of truth · **Magic-link email + Microsoft Entra SSO + Google OAuth** for portal sign-in · Role-based access control · **Resend** for all outbound email (sent from in-portal composer; BCCs the relevant team Outlook mailbox for institutional record) · **In-portal calendar with per-member iCal feeds** (Google/Microsoft Graph two-way sync deferred to a later phase).
+**Stack at a glance:** Next.js on **Vercel** · **Supabase** (Postgres + Auth + Storage) as the single source of truth · **Magic-link email + invite-link account setup** for portal sign-in (no SSO providers needed) · **Runtime-configurable permission matrix** (statuses × tabs → none/view/edit) · **Team-owned sending domain** (e.g., `aggiewranglers.com`) authenticated on **Resend** for outbound · **Cloudflare Email Routing** (free) forwards inbound at the team domain to existing TAMU Outlook role mailboxes; an `archive@` route captures officer-sent mail for CRM history · **Direct Google Calendar 2-way sync** for the team's existing calendar.
 
 ---
 
-## 0. TL;DR — what's new in v5 (from team Q&A clarifications)
+## 0. TL;DR — what's new in v6 (operational reality check)
+
+v6 absorbs a round of clarifications from the team that reshape several big architectural calls. v5 over-engineered around A&M IT cooperation; v6 routes around it.
+
+### Email architecture: domain-owned, Outlook-composed, BCC-archived
+- **A&M IT involvement is no longer required for any of this.** We don't authenticate Resend on `wranglers.tamu.edu` — we authenticate on the **team-owned domain** (e.g., `aggiewranglers.com`) which the team controls directly.
+- **Inbound mail uses Cloudflare Email Routing** (free, unlimited aliases). Replies to `performance@aggiewranglers.com` forward to the existing TAMU Outlook `performance@wranglers.tamu.edu` mailbox. **No new inboxes for officers to check.**
+- **Outbound:** auto-replies (form acks, magic links, survey invites, weekly digests) sent via Resend from the team domain. Officer-composed emails are **drafted in their existing TAMU Outlook**, not in a portal composer — the portal generates `mailto:` links with prefilled subject/body for common reply types (confirmation, decline, follow-up).
+- **CRM capture via auto-BCC:** each officer sets up a one-time Outlook rule to BCC `archive@aggiewranglers.com` on all sent mail. That archive route delivers messages to a portal webhook (via Cloudflare Worker or a free Gmail account polled via IMAP). The portal attaches each message to the right thread + contact. **We get full CRM history without API access to anyone's mailbox and without an in-portal composer.**
+- The in-portal email composer from v5 is **removed**. Microsoft Entra SSO is **removed**. Threads are reconstructed from BCC'd messages alone.
+
+### Permissions: runtime-configurable matrix
+- v5 hardcoded "PR Officer owns Performance Management, Lessons Coordinator owns Lessons, etc." v6 makes this **configurable in Settings**.
+- **Permission Statuses** (e.g., `president`, `vp`, `performance_officer`, `lessons_coordinator`, `secretary`, `member`, `alumni`, plus admin) are defined as data, not hardcoded.
+- For each status × each tab, the access level is one of: `none` / `view` / `edit`.
+- **Multiple users can hold the same status** (useful during officer turnover — outgoing and incoming PR officer both have access during transition).
+- A user can hold multiple statuses (the VP is also typically an officer of something).
+- Defaults ship with sensible matrix; team reconfigures in Settings as needed across years.
+- **Default starting permissions:** all team members get view access to most tabs + edit access to the resources / move library; alumni get view access to the alumni directory only.
+
+### Calendar: real Google Calendar 2-way sync
+- v5 had an in-portal calendar with iCal export only; Graph/Google sync deferred. v6 **integrates directly with the team's existing Google Calendar** as source of truth.
+- Add an event in the portal → writes to Google Calendar via API.
+- Edit in Google Calendar → portal reflects via push webhook.
+- Recurring events (practices, officer meetings) supported natively (RRULE rules on Calendar).
+- One-time events (workshops, retreats, banquets) supported.
+- **Calendar ownership transfers with president handover** — same calendar, same events, new owner.
+
+### Webmaster tab: CMS layer for public site content
+- Most public-page wording, profiles, video lists, sponsor info pulls from Postgres. The portal has a **Webmaster tab** that's the CRUD frontend for that content.
+- Trade-off acknowledged: lose Wix's easy drag-edit of page *structure*; gain stable, code-managed structure + a content layer the team can edit without touching code.
+- **Dynamic layouts** for places where content count varies (the current-team profile grid auto-expands when you add a new member; the video gallery reorders when you reorder rows in the portal).
+- Webmaster is a **tab, not a title.** The PR officer historically does this work but anyone with the right permission status can edit content.
+
+### Public availability survey: Wednesdays, combined performance + lessons
+- Default flips from Sunday 6 PM to **Wednesday 6 PM CT** (configurable, disable-able).
+- **Performance availability + private-lesson instructor availability merged into ONE weekly email** per member — no longer two separate surveys.
+- Adjudication happens Friday-Sunday so the Monday morning digest reflects confirmed assignments.
+
+### Performance request form: adds a donation interest field
+- New field: **"Would you be willing to give a donation when we perform?"** with options $250 / $500 / $750 / $1,000 / Other / Not at this time.
+- **Donations are NOT processed by the portal** (SOFC doesn't process donations). The portal captures interest only.
+- Officer can mark "donation received" / "declined" / "no response" after the gig for institutional memory. Actual collection happens through whatever channel the current team uses.
+
+### Contact matching: org-level and person-level
+- Contacts can be people OR organizations (e.g., a sorority that books the team every year — different chair each time, same org).
+- Matching logic on new form submissions: any of (first+last name fuzzy match) OR organization OR phone OR email → suggest as duplicate; officer chooses merge or create-new.
+- Adds `annual_reminders` so the team can flag "Houston Livestock Show — reach out every October" against an org contact.
+
+### Statistics dashboard
+- Per-member performance attendance percentage.
+- Per-performance roster (who's confirmed, with one-click add/remove).
+- Individual performance history per member.
+- Confirmed performance rosters stay editable — drop-outs and additions are one click; affected members auto-notified.
+
+### Out of v1 scope (moved to IDEAS.md backlog)
+- **Social media management tab** (cross-posting, AI variant generation). Team can use Buffer or similar separately. Captured as a future iteration.
+- **Online courses + Coaching service** — separate workstream from website/portal v1.
+- **Payments / Stripe** — completely removed from v1. SOFC Marketplace handles future commerce.
+- **SMS via Twilio** — still in v1.1+ backlog.
+- **`/our-building`** — removed (the team no longer has that building). 301 redirect to homepage.
+
+### What carries from v5 (still in the plan)
+- Public site at `aggiewranglers.com`, four primary CTAs, preserved legacy URLs, `/watch` destination for videos.
+- Authenticated team portal at `team.aggiewranglers.com`.
+- Performance review gate → batched weekly survey → **officer manually confirms or declines** (no auto-send, ever).
+- Drive-time-aware availability surveys (Google Maps Places + Distance Matrix).
+- Move Library scoped to a metadata catalog with YouTube links; officers edit directly; no alumni contribution queue.
+- Alumni profile auto-created on member's graduation.
+- Resources library (constitution PDF, choreography notes, contracts, etc.).
+- ~$15/yr total cost (just the domain).
+
+---
+
+## 0.5. TL;DR — what was new in v5
 
 v5 locks in the open architectural questions from v4 and adds the workflow nuances surfaced by the team. The big shifts: **email lives inside the portal** (not as Gmail drafts), **the calendar is in-portal in v1** (Google Calendar integration deferred), and **officers always manually confirm** (no automatic confirmation, ever).
 
@@ -92,7 +166,7 @@ v5 locks in the open architectural questions from v4 and adds the workflow nuanc
 - `/sponsorships`
 - `/meet-the-team`
 - `/history`
-- `/our-building`
+- `/our-building` — **no longer applicable in v6** (team no longer has that building); 301 redirect to `/`
 - `/faq`
 - `/alumni`
 - `/current-team`
@@ -128,19 +202,21 @@ v5 locks in the open architectural questions from v4 and adds the workflow nuanc
    3. Request a **performance**
    4. Request a **private lesson**
 2. **Team portal** that handles the team's actual operational life:
-   - Manage performance requests end-to-end (intake → review → batched availability survey → officer manual confirm/decline via in-portal composer).
-   - Manage lesson scheduling (public sessions for the semester, private lesson requests, instructor assignments).
+   - Manage performance requests end-to-end (intake → review → batched Wednesday-evening availability survey → officer manual confirm/decline).
+   - Manage lesson scheduling (public sessions for the semester, private lesson requests, instructor assignments). Lesson availability surveys merged into the same weekly email.
    - Maintain member roster (current, tryouts, graduated) with photos and phone-on-record for future SMS.
-   - **Contacts (CRM)** entity with full email + request + notes history across officer transitions — the institutional-memory feature.
-   - **In-portal email composer + thread store** so every outbound and inbound message is part of the contact's record forever.
-   - Manage site content (everything the public site shows).
-   - View an in-portal team calendar; export to personal calendars via signed iCal feeds.
+   - **Contacts (CRM)** entity (people + organizations) with full email + request + notes history across officer transitions. Email history populated by an auto-BCC archive flow — no in-portal composer required.
+   - **Webmaster tab** that CRUDs everything the public site shows.
+   - Sync to the team's existing **Google Calendar** (2-way); recurring events supported.
    - Provide member-facing resources (constitution, move library, alumni directory).
-3. **Preserve every existing URL** so SEO equity transfers.
+   - **Performance statistics dashboard** — per-member attendance %, per-performance roster (with one-click editing), individual performance history.
+   - **Annual reminders** on contacts (year-over-year gigs).
+3. **Preserve every existing URL** so SEO equity transfers. **Exception:** `/our-building` no longer applies; 301 redirect to `/`.
 4. **Visually polished**, theme-token-driven so the deferred brand refresh is a config change.
-5. **Email policy:** auto-replies are sent immediately for form acknowledgments and magic-link sign-ins; everything else is composed in the portal by an officer and sent from a role alias via Resend with team Outlook BCC.
-6. **In-portal calendar with per-member iCal feeds**; Microsoft Graph / Google Calendar two-way sync is a deferred later phase.
-7. **Free to run** (~$15/yr domain — every other service stays on free tier for AW's volume; see §14) and durable across officer transitions.
+5. **Email policy:** auto-replies sent immediately from a team-owned domain via Resend. Officer-composed emails happen in their existing TAMU Outlook (where they already work); the portal opens prefilled drafts via `mailto:` links and captures sent mail via an auto-BCC archive route on the team domain.
+6. **Direct Google Calendar 2-way sync** for the team's existing calendar; ownership transfers cleanly between presidents.
+7. **Runtime-configurable permissions** (statuses × tabs → none/view/edit) so the team can reshape access over time without code changes.
+8. **Free to run** (~$15/yr domain — every other service stays on free tier for AW's volume; see §14) and durable across officer transitions.
 
 ### Non-goals
 
@@ -148,7 +224,12 @@ v5 locks in the open architectural questions from v4 and adds the workflow nuanc
 - E-commerce / merch fulfillment (keep pointing to external store).
 - Replacing Flywire for public lesson payments.
 - Migrating banquet RSVP infra unless the team wants it.
-- Auto-sending non-trivial external emails. Confirmations, declines, quotes, and other client-facing emails are always composed (with template prefill) and sent by an officer from the in-portal composer. Auto-replies for form acknowledgments and magic-link sign-ins are the only no-human-in-the-loop sends.
+- Auto-sending non-trivial external emails. Confirmations, declines, quotes, and other client-facing emails are always composed and sent by an officer from their TAMU Outlook (the portal generates prefilled `mailto:` drafts). Auto-replies for form acknowledgments and magic-link sign-ins are the only no-human-in-the-loop sends.
+- Hosting paid mailboxes on the team-owned domain. We use Cloudflare Email Routing to forward inbound at the team domain to existing TAMU Outlook accounts; no Google Workspace seats, no new inboxes for anyone to check.
+- Replacing the team's existing Google Calendar. We integrate with whatever calendar they're already using.
+- Processing payments inside the portal. SOFC Marketplace handles any future commerce; donations are tracked as interest only.
+- A social media management tab in v1. Captured in IDEAS.md as a future iteration.
+- Selling courses or coaching services. Captured in IDEAS.md as a separate workstream.
 - Doing anything the team can't take over within an officer transition cycle.
 
 ---
@@ -173,58 +254,60 @@ v5 locks in the open architectural questions from v4 and adds the workflow nuanc
    │  - / home (4 CTAs)         │         │  - Dashboard                       │
    │  - /public-lessons         │         │  - Performance management          │
    │  - /private-lessons        │         │  - Lessons management              │
-   │  - /performance-request    │         │  - Contacts (CRM)                  │
-   │  - /private-lesson-request │         │  - Email composer + threads        │
-   │  - /requirements (tryouts) │         │  - Members & roster                │
-   │  - /meet-the-team          │         │  - Site content (CMS)              │
-   │  - /watch (videos)         │         │  - Team calendar (in-portal)       │
-   │  - + every legacy URL      │         │  - Resources / Move Library        │
-   │                            │         │  - Alumni directory                │
-   │  Forms POST to /api/forms  │         │  - Surveys                         │
-   │  Read from DB (revalidate  │         │  - Settings                        │
+   │  - /performance-request    │         │  - Contacts (CRM, people + orgs)   │
+   │  - /private-lesson-request │         │  - Members & roster                │
+   │  - /requirements (tryouts) │         │  - Webmaster (site content CRUD)   │
+   │  - /meet-the-team          │         │  - Team calendar (= Google Cal)    │
+   │  - /watch (videos)         │         │  - Resources / Move Library        │
+   │  - + every legacy URL      │         │  - Alumni directory                │
+   │  - /our-building → /       │         │  - Meeting notes (Secretary tab)   │
+   │                            │         │  - Long-term goals (President)     │
+   │  Forms POST to /api/forms  │         │  - Performance stats dashboard     │
+   │  Read from DB (revalidate  │         │  - Settings (permissions matrix)   │
    │    via webhook on write)   │         │                                    │
-   │                            │         │  Auth: Supabase Auth               │
-   │                            │         │    · magic-link email              │
-   │                            │         │    · Microsoft Entra (Office 365)  │
-   │                            │         │    · Google OAuth (TAMU + Gmail)   │
-   └────────────────────────────┘         │  RBAC: roles[] on user record      │
-                                          └──────────────┬─────────────────────┘
+   │                            │         │  Auth: Supabase magic link +       │
+   │                            │         │    invite-link account setup       │
+   │                            │         │  Permissions: runtime matrix       │
+   │                            │         │    (statuses × tabs → access lvl)  │
+   └────────────────────────────┘         └──────────────┬─────────────────────┘
                                                          │
-        ┌────────────────────────────────────────────────┼─────────────────────────────┐
-        │                          │                     │                  │           │
-        ▼                          ▼                     ▼                  ▼           ▼
- ┌──────────────┐  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐  ┌────────────┐
- │ Resend       │  │ In-portal      │  │ In-portal      │  │ Google Maps    │  │ Vercel     │
- │ (auto-reply, │  │ email composer │  │ calendar       │  │ (Places auto-  │  │ Cron       │
- │  survey      │  │ + thread store │  │ + per-member   │  │  complete +    │  │ (weekly    │
- │  emails,     │  │ (send via      │  │ iCal feeds     │  │  Distance      │  │  surveys,  │
- │  digests,    │  │  Resend, BCC   │  │ (Google/MS     │  │  Matrix → real │  │  digests,  │
- │  magic       │  │  team Outlook  │  │  Graph sync    │  │  drive times)  │  │  staleness,│
- │  links)      │  │  for inbox     │  │  deferred to   │  │                │  │  Monday    │
- │              │  │  record)       │  │  later phase)  │  │                │  │  digest)   │
- └──────────────┘  └────────────────┘  └────────────────┘  └────────────────┘  └────────────┘
+   ┌─────────────────────────────────────────────────────┴─────────────────────────────┐
+   │                                                                                   │
+   ▼                          ▼                     ▼                  ▼               ▼
+┌──────────────┐  ┌────────────────────┐  ┌─────────────────┐  ┌──────────────┐  ┌────────────┐
+│ Resend       │  │ Cloudflare Email   │  │ Google Calendar │  │ Google Maps  │  │ Vercel     │
+│ (auto-reply, │  │ Routing (free)     │  │ API             │  │ (Places +    │  │ Cron       │
+│  survey      │  │  · *@aggiewranglers│  │  2-way sync     │  │  Distance    │  │ (Wednesday │
+│  emails,     │  │    .com → TAMU     │  │  with existing  │  │  Matrix →    │  │  surveys,  │
+│  digests,    │  │    Outlook         │  │  team calendar  │  │  drive       │  │  Monday    │
+│  magic       │  │  · archive@ →      │  │  (one-time      │  │  times)      │  │  digest,   │
+│  links;      │  │    Worker → portal │  │  service-       │  │              │  │  staleness │
+│  sends from  │  │    webhook (CRM    │  │  account auth)  │  │              │  │  checks)   │
+│  team domain)│  │    ingest)         │  │                 │  │              │  │            │
+└──────────────┘  └────────────────────┘  └─────────────────┘  └──────────────┘  └────────────┘
 ```
 
 ### Why this stack
 
 | Concern | Choice | Reason |
 |---|---|---|
-| Framework | **Next.js 15 (App Router)** | One app, two domains via middleware. Public pages render static/ISR; portal pages render dynamically with auth. Future maintainers (likely students) only learn one stack. |
+| Framework | **Next.js (App Router)** | One app, two domains via middleware. Public pages render static/ISR; portal pages render dynamically with auth. Future maintainers (likely students) only learn one stack. |
 | Hosting | **Vercel** | Hobby tier covers AW's scale. Free + GitHub-native deploys. |
-| Database + Auth + Files | **Supabase** | One vendor for Postgres, auth (magic link + OAuth providers), and file storage for headshots/logos/PDFs. RLS gives RBAC at the DB layer. |
-| Auth providers | **Supabase Auth**: magic-link email + **Microsoft Entra (Office 365)** OAuth + **Google OAuth** (TAMU + personal Gmail) | Magic link is the always-works fallback for alumni / external collaborators. Entra SSO for officers on team Outlook accounts. Google OAuth for personal TAMU Gmail accounts. Domain allow-listing handled by RBAC + approval queue, not by restricting the OAuth provider. |
+| Database + Auth + Files | **Supabase** | One vendor for Postgres, auth (magic link), and file storage for headshots/logos/PDFs. RLS gives a defense-in-depth layer beneath the application permission matrix. |
+| Auth | **Supabase Auth — magic link only**, with officer-issued invite links | Officers create new member/alumni profiles from the portal; system sends an invite link with one-time setup. After setup, users sign in via magic-link to their email on file or a password they set. No SSO providers — keeps the system independent of A&M IT and Microsoft tenancy. |
+| Permissions | **Runtime-configurable matrix in Settings** | Statuses (president, vp, performance_officer, lessons_coordinator, secretary, member, alumni, admin) × tabs → none/view/edit. Multiple users can hold same status; users can hold multiple statuses. Reconfigurable without code changes. RLS enforces at the DB layer. |
 | ORM | **Drizzle** | Lean for serverless; great Postgres support; portable SQL. |
-| RBAC | **roles[] on user** + route middleware + RLS | Simple, transparent, defense in depth. |
 | UI | **shadcn/ui + Tailwind** | Token-driven theming so the brand refresh later is a config change. Looks like a serious product, not an admin panel. |
 | Cache / KV | **Upstash Redis** | Rate limits, survey response idempotency, Distance Matrix cache. |
-| Email — outbound | **Resend** | All outbound email goes through Resend: form auto-replies, magic-link sign-in, survey invitations, weekly digest, AND officer-composed messages sent from the in-portal composer (from authenticated role aliases on the team domain). |
-| Email — inbound + thread record | **Per-mailbox forwarding rules → portal ingest endpoint** | Each role mailbox (`performance@`, `lessons@`, `bookings@`) forwards inbound messages to a per-alias webhook that attaches the message to the right thread + contact. Microsoft Graph polling can replace forwarding later if officers want richer inbox features. |
-| Calendar | **In-portal calendar + per-member iCal feeds** | Source of truth lives in Postgres. Members subscribe to a signed iCal URL from any calendar app (Apple/Google/Outlook). Google Calendar / Microsoft Graph two-way sync is a deferred later phase, not in v1. |
-| Maps / drive time | **Google Maps Platform** (Places + Distance Matrix) | Address autocomplete on the performance form; compute real drive time from the building to the venue. |
-| Background jobs | **Vercel Cron** (consolidated daily entry point) | One daily cron that branches by weekday handles weekly survey send, weekly digest, response-deadline checks, and daily staleness checks — fits Hobby tier's 2-cron limit. |
-| SMS (planned) | **Twilio** — not v1, but reserve schema | Phone numbers collected on member + contact records from day one so day-of reminder texts and "RSVP last call" are unblocked when we add Twilio. |
+| Email — outbound | **Resend** (authenticated on team-owned domain) | All outbound email goes through Resend from `*@aggiewranglers.com`: form auto-replies, magic-link sign-in, weekly survey invites, Monday digest. Officer-composed emails happen in TAMU Outlook (not in the portal) — the portal generates `mailto:` link drafts for common reply types. |
+| Email — inbound forwarding | **Cloudflare Email Routing** (free) | Free, unlimited aliases. Routes `performance@aggiewranglers.com` → `performance@wranglers.tamu.edu` etc. so replies land in the officer's existing TAMU Outlook with no new inboxes to check. |
+| Email — CRM archive | **Outlook auto-BCC rule → `archive@aggiewranglers.com` → Cloudflare Worker → portal webhook** | Each officer sets up a one-time BCC rule in their TAMU Outlook. Every sent message lands at the archive route, gets POSTed to the portal, attached to the right contact + thread. Provides CRM history without an in-portal composer or any API access to anyone's mailbox. |
+| Calendar | **Google Calendar API — 2-way sync with the team's existing calendar** | Service account on a Google Cloud project (one-time setup, no A&M involvement) gets shared write access to the team's calendar. Portal writes confirmed performances/lessons/tryouts as events; webhook subscription reflects external edits back into the portal. Calendar ownership transfers to the next president on handover — same calendar, new admin. |
+| Maps / drive time | **Google Maps Platform** (Places + Distance Matrix) | Address autocomplete on the performance form; compute real drive time from the practice location to the venue. Officer can override per request. |
+| Background jobs | **Vercel Cron** (consolidated daily entry point) | One daily cron branches by weekday: Wednesday → send combined performance + private-lesson availability survey; Monday → send weekly digest; daily → response-deadline + staleness checks. Fits Hobby tier's 2-cron limit. |
+| SMS (planned) | **Twilio** — not v1, but reserve schema | Phone numbers collected on member + contact records from day one so day-of reminder texts and RSVP nudges are unblocked when we add Twilio. |
 | Analytics | **Vercel Web Analytics** | Privacy-friendly, no cookie banner needed. |
-| Domain | `aggiewranglers.com` apex + `team.aggiewranglers.com` subdomain | Both point to the same Vercel project; middleware routes by host. Email aliases (`*@wranglers.tamu.edu` or new team-owned domain) authenticated in Resend for sending. |
+| Domains | `aggiewranglers.com` apex + `team.aggiewranglers.com` subdomain + `*@aggiewranglers.com` email aliases | All on the team-owned domain. Both web subdomains point to the same Vercel project; middleware routes by host. Cloudflare provides DNS (free) and Email Routing. |
 
 ### Database choice: settled on Supabase
 
@@ -234,86 +317,85 @@ Supabase covers Postgres, auth, and file storage in a single free-tier vendor. O
 
 ## 4. The team portal (`team.aggiewranglers.com`)
 
-The portal is structured as twelve tabs, each with role-gated access. Anyone signed in sees a personalized Dashboard; everything else depends on roles.
+The portal is structured as the tabs below. **Access to each is governed by the runtime permission matrix** (§4.2) — there are no hardcoded role-to-tab mappings in code. Anyone signed in sees a personalized Dashboard; the rest depends on what statuses they hold.
 
 ### 4.1 Tabs & features
 
-**1. Dashboard** *(all roles)*
-- "Where you're expected this week" — next 7 days of personal calendar.
-- Open surveys to respond to.
-- Action items for your role (e.g., PR officer: "3 requests past their response deadline waiting for your decision").
-- System banners (staleness alerts targeted to the relevant officer).
-- Unread thread count for any role aliases you own.
+**1. Dashboard**
+- "Where you're expected this week" — next 7 days of the user's assigned calendar events.
+- Open surveys awaiting their response.
+- Action items keyed to the user's statuses (e.g., for a performance officer: "3 requests past their response deadline waiting for your decision").
+- **Annual-reminder pings** (e.g., "Houston Livestock Show — last booked Oct 2025, want to reach out?").
+- System banners (staleness alerts targeted to the relevant role).
 
-**2. Performance Management** *(PR Officer, President, Member view-only)*
+**2. Performance Management**
 - Inbox: all `performance_requests` with status filters and prominent visual badge on `urgency = quick_answer` rows.
-- Per-request detail page: review notes, urgency flag, contact link (jumps to the requester's contact profile and full history), poll history, survey response breakdown, message thread.
+- Per-request detail page: review notes, urgency flag, **donation interest** ($250 / $500 / $750 / $1,000 / Other / Not at this time), contact link (jumps to the requester's contact profile and full history), poll history, survey response breakdown, full email history.
 - Workflow buttons:
   - **Approve to poll** (set polling window + min couples + response deadline + survey inclusion)
-  - **Decline** (jumps to email composer with the decline template)
+  - **Decline** (opens TAMU Outlook via `mailto:` with the decline template prefilled)
   - **Send survey now** / **Add to next weekly survey**
-  - **Compose confirmation** / **Compose decline** (opens in-portal composer prefilled from template — see Tab 4 below)
-- **No auto-send anywhere.** Threshold-met is a status badge that prompts officer action; nothing leaves the portal until the officer clicks Send in the composer.
-- Settings sub-tab: `weekly_survey_day`/`time`, `auto_send_weekly_survey` on/off, `default_polling_window_days`, `default_min_couples_required` (default **3**), `default_response_deadline_days` (default **3**), default `call_time_minutes_before` (60), default `return_buffer_minutes` (15).
+  - **Compose confirmation** / **Compose decline** / **Compose follow-up** (each opens TAMU Outlook with a prefilled draft from the relevant template — officer reviews, edits, sends from Outlook; auto-BCC archive captures it for the CRM record)
+- **Confirmed performances stay editable.** Add/remove members from the lineup with one click; added members get a notification "you're on for X," removed members get "you've been taken off X."
+- **Donation tracking** (informational only — portal doesn't process payments): officer can mark donation status after the gig as Received / Declined / No response / Pending.
+- **No auto-send anywhere.** Threshold-met is an informational status badge; nothing leaves the system until the officer drafts in Outlook and clicks send.
+- Settings sub-tab: `weekly_survey_day`/`time` (default **Wednesday 6 PM CT**), `auto_send_weekly_survey` on/off, `default_polling_window_days`, `default_min_couples_required` (default **3**), `default_response_deadline_days` (default **3**), default `call_time_minutes_before` (60), default `return_buffer_minutes` (15).
 
-**3. Lessons Management** *(Lessons Officer, President)*
-- **Public sessions:** schedule a semester of sessions at once. Each session has `visible_to_public` toggle (default OFF) and optional `publish_at` date. Officer can plan ahead, then flip on (or auto-publish) when ready.
-- **Private lesson requests:** same shape as Performance Management (review gate → optional survey → assign instructors → manual confirm via in-portal composer).
-- **Instructor pool:** which members are eligible to teach which class types.
+**3. Lessons Management**
+- **Public sessions:** schedule a semester of sessions at once. Each session has `visible_to_public` toggle (default OFF) and optional `publish_at` date.
+- **Private lesson requests:** same shape as Performance Management (review gate → optional inclusion in the weekly combined availability survey → assign instructors → manual confirm via TAMU Outlook draft).
+- **Instructor pool:** which members are eligible to teach which class types. Drives inclusion in the combined Wednesday survey.
 
-**4. Contacts (CRM)** *(all officers; member view-only for their own threads)*
-- **Single contact entity for every external person the team interacts with.** Auto-created from every form submission (performance, private lesson, general inquiry, newsletter); manually creatable by any officer.
+**4. Contacts (CRM)**
+- **Two contact types: people and organizations.** A sorority that books the team annually is an organization-contact with a rotating "current contact person" field; individuals are person-contacts; both link to requests independently.
+- Auto-created from every form submission (performance, private lesson, general inquiry, newsletter); manually creatable by any officer.
+- **Matching logic on intake:** if any of (fuzzy first+last name) OR organization OR phone OR email matches an existing contact, the officer is prompted with "looks like this might be [X] — merge, attach to org, or create new." Officer chooses.
 - Contact profile shows:
-  - Identity: name, organization, email, phone, address, social links, contact-permission preferences (email OK / phone OK / SMS OK once Twilio is added).
+  - Identity: name (or org name), email, phone, address, social links, contact-permission preferences.
   - **All past requests** (performance + private lesson + general inquiry) with status, outcome, dates.
-  - **Full email thread history** across years and officer transitions — every message sent to or received from this contact, surfaced in chronological order, with which officer sent it.
-  - **Officer notes** (markdown). New officers can read what previous officers learned: "Always wants the team for their Houston gala. Florist is Stems by Sarah. Pays via wire from their corporate account. Loves the Midland video."
-  - Tags (lightweight free-text), follow-up date (optional reminder on the officer dashboard).
-- Search across name, organization, email, phone, notes, and past request notes.
-- Merge tool for de-duplicating contacts (same email, different forms; or marriage name changes).
-- **This tab is the institutional-memory feature.** A new PR officer landing in this tab on day one can pick up where the last one left off.
+  - **Full email history** — every message sent to or received from this contact, threaded chronologically, with which officer sent it. Populated by the auto-BCC archive flow (§8.6), not by an in-portal composer.
+  - **Officer notes** (markdown) that survive officer transitions.
+  - **Annual reminders** — e.g., "remind in October every year" for a recurring gig. Surfaces on the relevant officer's dashboard 4–6 weeks before the reminder date.
+  - Tags (lightweight free-text), one-off follow-up date.
+- Search across name, organization, email, phone, notes, request notes.
+- Merge tool for de-duplicating contacts.
 
-**5. Email** *(officers, scoped to threads they have access to)*
-- In-portal composer + thread view, scoped to the role aliases the officer owns (`performance@`, `lessons@`, `bookings@`, etc.).
-- Inbox per alias with unread counts; threads grouped by contact.
-- Compose flow:
-  1. Pick template (or write from scratch).
-  2. System fills variables from the related request/contact.
-  3. Officer edits freely.
-  4. Hit Send → Resend delivers from the role alias to the recipient, BCCs the team Outlook mailbox so the sent record lands in the officer's regular inbox too, stores the message + thread in Postgres.
-- Inbound replies: per-mailbox forwarding rules send incoming messages to a portal webhook; we match to the thread by `Message-ID` / `In-Reply-To` headers or by sender email and attach.
-- **Every message is automatically linked to its contact** so the conversation history stays threaded across years.
-
-**6. Members** *(President, Webmaster; Members view-only)*
-- CRUD on member records: name, role title, class year, hometown, major, headshot, partner photo, partner link, bio, **phone (private, opt-in for future SMS)**, email, status (`current` / `tryout` / `graduated` / `inactive`).
+**5. Members**
+- CRUD on member records: name, role title, class year, hometown, major, headshot, partner photo, partner link, bio, **TAMU email**, **personal email**, **phone (private, opt-in for future SMS)**, status (`current` / `tryout` / `graduated` / `inactive`).
 - Drag-drop photo uploads to Supabase Storage.
-- Officer transitions: bulk role updates at year-end.
-- Approval queue for new sign-ins (TAMU/Gmail email present but not yet on team).
+- **Account creation flow:** officer creates the profile from this tab → portal sends an invite email with a setup link → user sets a password or uses magic-link going forward.
+- Personal email field on every profile. **On graduation, system flips primary email from TAMU to personal** (TAMU expires).
+- Officer transitions: bulk status updates at year-end.
 - **Graduation flow:** marking a member `graduated` auto-creates a draft `alumni_profiles` row linked by `member_id`; the alumnus completes it on their next sign-in.
 
-**7. Site Content** *(Webmaster, President)*
-- Edit homepage announcement, site-wide tagline, contact info.
+**6. Webmaster (Site Content CRUD)**
+- **The CMS layer for the public site.** Most page wording, profiles, video listings, sponsor info, and FAQ entries pull from Postgres. This tab is the CRUD frontend.
+- Edit homepage announcement, taglines, contact info, history-page wording, etc.
+- Manage member profile cards (the public `/meet-the-team` grid auto-expands as profiles are added — dynamic layout, no per-profile dev change).
 - Manage `/watch` videos: reorder, set category (Top Routines / Music Videos / BTS & Press), toggle `featured`.
 - Manage sponsors: add/edit/order, upload logos.
 - Manage FAQ: add/edit/order.
 - Manage tryout cycle: dates, eligibility, signup URL, `active` toggle.
 - Manage **Banquet** content (annual update — page stays live year-round at `/banquet`).
-- Manage **Merchandise** external store link (link-out only in v1).
+- Manage **Merchandise** external store link (link-out only).
 - **Preview button:** opens public site in a new tab with draft content via cookie.
+- **Trade-off:** page structure is code-managed (not click-edit like Wix) but the content layer is fully editable by the team without a developer. "Webmaster" is a tab, not a title — historically the PR officer has done this work, but anyone granted edit access in the permission matrix can use it.
 
-**8. Team Calendar** *(all roles)*
-- **In-portal calendar view** (month / week / day / agenda). Source is Postgres, not Google.
-- Event types: confirmed performances, scheduled public lessons, confirmed private lessons, tryout cycle dates, custom team events.
+**7. Team Calendar**
+- **Backed by the team's existing Google Calendar via 2-way sync.** Portal renders a calendar UI (month / week / day / agenda) that reads from Google Calendar and writes back to it.
+- Event types: confirmed performances, scheduled public lessons, confirmed private lessons, tryout cycle dates, **recurring practices, officer meetings**, retreats, workshops, ad-hoc team events.
 - Member-specific "my events" filter.
-- Personal iCal feed URL (one-click copy) for Apple / Google / Outlook subscription.
-- Microsoft Graph / Google Calendar two-way sync is **deferred to a later phase**; v1 ships iCal-only.
+- Adding an event in the portal writes to Google Calendar; editing in Google Calendar reflects back in the portal (push webhook from Google).
+- **Recurring events** (weekly practices, biweekly officer meetings) supported natively via Google Calendar RRULE rules.
+- Personal iCal export still available (for members who want only their assigned events on their phone calendar) — but most members will just subscribe to the team Google Calendar directly.
+- Calendar ownership: stays with the team Google account that already owns it; transferred to next president on handover via Google's calendar ownership transfer flow.
 
-**9. Resources** *(all members + alumni; officers can upload)*
+**8. Resources** *(default: every team member has view + edit access; alumni get view-only on `members_and_alumni`-tagged files)*
 - Library of team files: **constitution PDF**, choreography notes, contracts/templates, historical photos by year, music library catalog (links), important contact lists, sponsor decks, etc.
-- Each file: title, description, category, uploaded_by, uploaded_at, visibility (`members_only` / `members_and_alumni` / `officers_only`).
+- Each file: title, description, category, uploaded_by, uploaded_at, visibility tag (`members_only` / `members_and_alumni` / `officers_only`).
 - Drag-drop upload to Supabase Storage; previews for PDFs and images.
 
-**10. Move Library** *(all members; officers can edit)*
+**9. Move Library** *(default: every team member has view + edit access; officers can publish/archive)*
 - **Catalog of every jitt / stunt move the team knows; videos hosted on the team's private YouTube channel(s).** The portal stores metadata + links, not the video files themselves.
 - Each move record:
   - `name` + `aliases[]` (alumni often know moves by different names)
@@ -326,51 +408,101 @@ The portal is structured as twelve tabs, each with role-gated access. Anyone sig
 - Filterable by category, difficulty, era.
 - **No alumni contribution queue in v1.** Officers edit entries directly. If an alumnus wants to add a move, they tell an officer who adds it. Access to the YouTube videos themselves is governed by YouTube channel membership, not portal logic — which keeps the portal simple and the access control where alumni are already used to it.
 
-**11. Alumni Directory** *(members + alumni)*
+**10. Alumni Directory** *(default: every team member + alumni has view access; admin / approver-status edits)*
 - Searchable by graduation year, hometown, current city.
+- Stores current contact info (email, optional phone, current address or city) for every alumnus on record.
 - Each alumnus controls their own opt-in/opt-out and contact permissions.
-- Self-service registration for alumni who graduated before the portal existed (no `members` row to link to); president (or designate) approves.
+- Self-service registration for alumni who graduated before the portal existed (no `members` row to link to); approver-status user approves.
 
-**12. Settings** *(President, scoped subsets for other officers)*
-- **Auth:** allowed sign-in providers (magic link / Entra / Google), TAMU domain restriction for member-tier roles.
-- **Email:** Resend domain verification status, role alias configuration, signature defaults per role, inbound forwarding addresses per alias.
-- **Calendar:** event color scheme; iCal feed token rotation.
-- **Site:** site name (placeholder until brand refresh), tagline, contact address, social links.
+**11. Meeting Notes** *(default: Secretary edits, all officers view, members view)*
+- Lightweight tab for team meeting notes — date, attendees (linked to members), agenda, decisions, action items.
+- Action items can have assignees (linked to members) and a due date that surfaces on the assignee's dashboard.
+- Searchable across past meetings.
+
+**12. Long-Term Goals** *(default: President + VP edit, all officers view)*
+- A tab where the president captures multi-year goals, strategic priorities, things to revisit next semester / next year.
+- Survives officer transition — next president inherits the doc and edits forward.
+- Free-form structured doc; no rigid schema.
+
+**13. Performance Statistics Dashboard** *(default: all team members view; officers see additional drill-downs)*
+- Per-member performance attendance percentage (e.g., "made 17 of 23 confirmed performances this year — 74%").
+- Per-performance roster view: who's confirmed for each upcoming performance, with one-click add/remove for officers.
+- Individual performance history per member: every performance they've been part of, ordered chronologically.
+- Team-wide stats: confirmed performances per month, total drive hours, drop-out rate, response rate on surveys.
+- Sensitive views (drop-out rate per member) restricted to officers by default.
+
+**14. Surveys** *(default: all members view their own; officers view all responses)*
+- Member-facing view of any open availability survey (also delivered by email Wednesday evening).
+- Combined performance + private-lesson availability in one form.
+- Past responses visible (member's own history; officers see everyone).
+
+**15. Settings** *(default: President + admin edit; other statuses scoped subsets)*
+- **Permissions matrix** (the big one — see §4.2). Grid editor: rows = statuses, columns = tabs, cells = none / view / edit dropdowns. Plus a CRUD for the list of statuses themselves.
+- **Email config:** Resend domain verification status, role alias list, signature defaults per alias, archive-route configuration.
+- **Calendar config:** linked Google Calendar ID + sync state, event color scheme.
+- **Site config:** site name (placeholder until brand refresh), tagline, contact address, social links.
+- **Ops defaults:** survey day/time (default Wed 6 PM CT), polling window, min couples, response deadline, digest day/time.
 - **Webhooks / API keys:** admin only.
-- **Ops defaults** (mirrored in Performance Management Settings sub-tab for PR officer): survey day/time, polling window, min couples, response deadline, digest day/time.
 
-### 4.2 Roles & RBAC
+### 4.2 Permissions: runtime-configurable matrix
 
-| Role | Granted to | Can read | Can write |
-|---|---|---|---|
-| `admin` | Build maintainer (handed to president on transition) | All | All, including settings & user roles |
-| `president` | Current president | All | All except admin-only settings; approves new sign-ins and alumni registrations |
-| `officer:performance` | PR officer | Members, performances, contacts, threads on `performance@`, calendar, site content | Performance management, surveys, composer on `performance@` |
-| `officer:lessons` | Lessons officer | Members, lessons, contacts, threads on `lessons@`, calendar, site content | Lessons management, surveys, composer on `lessons@` |
-| `officer:webmaster` | Webmaster / social media officer | Members, site content, videos, FAQ | Site content tab |
-| `member` | Current team member | Their assignments, calendar, resources, move library, alumni directory | RSVP to surveys, edit own bio + photos, opt in/out of phone-on-record |
-| `alumni` | Verified alumni | Resources flagged `members_and_alumni`, alumni directory, move library metadata (videos via YouTube channel access, not portal) | Edit their own alumni profile |
+The v6 access model is **data, not code.** There are no hardcoded role-to-tab mappings in the portal. Instead, the Settings tab exposes a grid editor where the team configures who can do what — and it can be reconfigured over time as the team's structure changes.
 
-A user can hold multiple roles (president is usually also an officer of something). Role checks live in Next.js middleware and in API routes; UI hides tabs the user can't access.
+**Concepts:**
 
-### 4.3 Login flow
+- **Permission Status** — a named bucket of access (e.g., `president`, `vp`, `performance_officer`, `lessons_coordinator`, `secretary`, `member`, `alumni`, `admin`). Defined as data in a `permission_statuses` table. Team can add new statuses (e.g., `practice_captain`, `social_media_lead`) without code changes.
+- **Tab** — a portal section. Statically declared in code (one row per tab in a `tabs` registry).
+- **Permission** — a row joining `status_id × tab_key → access_level`. `access_level` is one of `none` / `view` / `edit`.
+- **User-Status** — many-to-many link: a user can hold multiple statuses, and a status can be held by multiple users. **Critical for officer turnover** — both the outgoing and incoming PR officer can hold `performance_officer` status during a transition month.
 
-User picks one of three sign-in methods on `team.aggiewranglers.com`:
+**Effective access for a user on a tab:** highest access level across all of the user's statuses. (If a user is both `secretary` and `vp`, and `secretary` has `view` on Performance Management while `vp` has `edit`, the user gets `edit`.)
 
-1. **Magic link** — email address only. Resend delivers a one-tap signed link. Always-works fallback for alumni, external collaborators, or anyone whose SSO isn't set up.
-2. **Microsoft Entra (Office 365)** — for officers signed in with their team Outlook account.
-3. **Google OAuth** — covers both `@tamu.edu` and personal Gmail.
+**Default starting matrix shipped with the system:**
 
-Behind any of the three, Supabase Auth resolves to a single canonical `users` row keyed by primary email. A user can later link additional providers from their profile.
+| Status | Default access pattern |
+|---|---|
+| `admin` | edit on all tabs (build maintainer; transfers to president at handover) |
+| `president` | edit on all tabs except admin-only Settings sub-sections |
+| `vp` | edit on all tabs except admin-only Settings sub-sections |
+| `performance_officer` | edit on Performance Management + Surveys; view on everything else (incl. Webmaster, Contacts shared) |
+| `lessons_coordinator` | edit on Lessons Management + Surveys; view on everything else |
+| `secretary` | edit on Meeting Notes; view on everything else |
+| `member` | view on Dashboard, Members (own profile edit), Resources (edit), Move Library (edit), Team Calendar, Alumni Directory, Performance Stats (own data), Surveys (own responses) |
+| `alumni` | view on Alumni Directory (edit own profile); no other access |
 
-**First sign-in for an unknown email:**
-1. Account is created with role `member` and `status = pending_approval`. Lands on a "waiting for officer approval" page.
-2. President (or whoever holds the approver role) sees a notification on their dashboard, opens Members → Approval queue, grants roles (or rejects with a reason).
-3. The approver can match the email to an existing `members` row (for a member who is just claiming their portal account) or create a new `members` row from the sign-in info.
+Officers can override any cell from Settings → Permissions Matrix. Status names are also editable for terminology fit (e.g., rename `performance_officer` to `pr_officer` if that's the team's vocabulary).
 
-**Alumni sign-in:** alumni whose `members` record was already migrated land in their alumni profile directly on approval. Alumni who graduated before the portal existed go through the self-service registration path (grad year + verification info) and the same approval queue.
+**Enforcement layers** (defense in depth):
+- UI: tabs the user has `none` on are hidden from navigation.
+- API routes: every endpoint checks effective access for the requesting user on the relevant tab.
+- Database: Supabase RLS policies key off the same matrix as a backstop.
 
-**Bootstrap:** at launch we whitelist the current officer slate by email so they can sign in immediately without manual approval. Initial admin is the build maintainer; ownership transfers to the president at officer transition.
+### 4.3 Account creation & login flow
+
+**Accounts are created by officers, not by self-signup.** This is a deliberate inversion of the v5 flow — instead of "user signs in with SSO, lands on a pending-approval queue," v6 does "officer creates the profile, system invites the user."
+
+**Account creation:**
+1. Officer opens Members tab → "Add member" or "Add alumni."
+2. Fills in name + email (TAMU email for current members; personal email for alumni / pre-existing).
+3. System creates the `users` row + `members` row, assigns default `member` (or `alumni`) status, and sends an invite email with a setup link.
+4. User clicks the link, picks a password (or just uses magic-link going forward), and lands on their dashboard.
+
+**Returning sign-in:**
+- **Magic link** — email address only. Resend delivers a one-tap signed link to whatever email is on file. Always works.
+- **Password** — for users who set one during setup. Standard email + password.
+
+No SSO providers in v6. Magic link is the simplest mechanism that works without any third-party identity integration; password login is the cover for users who prefer it.
+
+**Email-on-file lifecycle:**
+- Current members default to their TAMU Gmail.
+- Each profile has an optional `personal_email` field.
+- When a member is marked `graduated`, the system flips primary email from TAMU to personal (since TAMU expires post-graduation). User is reminded to confirm on next sign-in.
+
+**Alumni self-signup** (for alumni who graduated before the portal existed and have no `members` row):
+- Self-service form on `team.aggiewranglers.com/alumni-signup`: name, graduation year, contact info.
+- Lands in an approval queue handled by a user with approver-status (default: president). Approver can match against legacy records or create fresh.
+
+**Bootstrap at launch:** the current officer slate gets pre-created profiles + setup links so they can sign in immediately on day one. Initial admin is the build maintainer; admin status transfers to the president at officer transition.
 
 ---
 
@@ -385,7 +517,6 @@ Home  |  Lessons ▾  |  Performances ▾  |  Tryouts  |  About ▾  |  Watch
    Private Lessons     Performance Info          Meet the Team
    Private Request                               Current Team
                                                  Alumni
-                                                 Our Building
                                                  FAQ
                                                  Sponsorships
                                                  Banquet
@@ -424,13 +555,16 @@ Grouped by domain. All tables have `id`, `created_at`, `updated_at`.
 
 ### 6.1 Identity & access
 
-- **users**: `email` (unique), `name`, `avatar_url`, `roles[]` (text[]), `status` (`pending_approval` / `active` / `disabled`), `member_id` (FK → members, nullable for non-member logins), `phone` (optional, opt-in for future SMS).
-- **auth providers / sessions**: managed by Supabase Auth (`auth.users`, `auth.identities`, `auth.sessions`). A given `users` row can have multiple linked identities (magic link + Entra + Google) that all resolve to the same canonical user.
-- **audit_log**: who did what when (RBAC-sensitive actions only — role grants, sends, deletes, settings changes).
+- **users**: `primary_email` (unique), `name`, `avatar_url`, `status` (`pending_setup` / `active` / `disabled`), `member_id` (FK → members, nullable for non-member logins), `phone` (optional, opt-in for future SMS), `password_set` (bool — false until user completes setup), `last_signed_in_at`.
+- **auth identities / sessions**: managed by Supabase Auth (`auth.users`, `auth.identities`, `auth.sessions`). Provider is `email` (magic link) only in v6.
+- **permission_statuses**: `key` (unique slug like `performance_officer`), `display_name`, `description`, `is_system` (bool — system statuses like `admin` can't be deleted), `created_by_id`, `updated_by_id`. Team can add/rename statuses via Settings.
+- **permissions**: `status_id` (FK → permission_statuses), `tab_key` (string matching the tab registry in code), `access_level` (enum: `none` / `view` / `edit`). Unique on `(status_id, tab_key)`.
+- **user_statuses**: `user_id`, `status_id`, `granted_at`, `granted_by_id`, `expires_at` (nullable — useful for outgoing-officer access windows during turnover).
+- **audit_log**: who did what when (permission-sensitive actions, settings changes, role grants/revokes, contact merges, performance roster edits).
 
 ### 6.2 Site content
 
-- **site_settings** (single row): `site_name` (placeholder until brand refresh), `tagline`, `mission`, `contact_email`, `address`, `socials`, `tryouts_open`, `lessons_open`, `homepage_announcement`, `auto_send_weekly_survey`, `weekly_survey_day` (default Sunday), `weekly_survey_time` (default 18:00 CT), `default_polling_window_days`, `default_min_couples_required` (default 3), `default_response_deadline_days` (default 3), `weekly_digest_day` (default Monday), `weekly_digest_time` (default 08:00 CT), `default_call_time_minutes_before` (60), `default_return_buffer_minutes` (15), `theme_tokens_json` (brand-refresh-ready theme overrides).
+- **site_settings** (single row): `site_name` (placeholder until brand refresh), `tagline`, `mission`, `contact_email`, `address` (practice location, used for drive-time origin), `socials`, `tryouts_open`, `lessons_open`, `homepage_announcement`, `auto_send_weekly_survey`, `weekly_survey_day` (default **Wednesday**), `weekly_survey_time` (default **18:00 CT**), `default_polling_window_days`, `default_min_couples_required` (default 3), `default_response_deadline_days` (default 3), `weekly_digest_day` (default Monday), `weekly_digest_time` (default 08:00 CT), `default_call_time_minutes_before` (60), `default_return_buffer_minutes` (15), `theme_tokens_json` (brand-refresh-ready theme overrides), `google_calendar_id` (the team calendar ID for 2-way sync), `team_email_domain` (default `aggiewranglers.com`), `archive_email_address` (default `archive@aggiewranglers.com`).
 - **public_lessons**: `class_name`, `level`, `day`, `start_time`, `end_time`, `dates[]`, `instructor_ids[]`, `signup_url`, `visible_to_public`, `publish_at` (nullable), `active`, `notes`.
 - **tryouts**: `cycle_name`, `prep_lesson_dates[]`, `tryout_date`, `eligibility_notes`, `signup_url`, `active`.
 - **members**: `name`, `role_title` (display), `class_year`, `hometown`, `major`, `headshot_url`, `partner_photo_url`, `partner_id` (FK self), `bio`, `display_order`, `status` (`current` / `tryout` / `graduated` / `inactive`), `email`, `phone` (private, opt-in for future SMS), `sms_opt_in` (bool), `graduation_date` (nullable).
@@ -442,38 +576,52 @@ Grouped by domain. All tables have `id`, `created_at`, `updated_at`.
 
 ### 6.3 Operations
 
-- **contacts**: `name`, `organization`, `email` (indexed), `phone`, `address`, `social_links_json`, `tags[]`, `email_opt_in` (default true), `sms_opt_in` (default false), `notes_markdown`, `follow_up_date` (nullable), `created_by_id`, `merged_into_id` (nullable self-FK for merges). Every form submission resolves to a contact by email; manual create supported.
+- **contacts**: `kind` (`person` / `organization`), `name` (person name or org name), `parent_org_contact_id` (nullable FK self — for "Sarah is a contact who works for [Kappa Kappa Gamma]"), `email` (indexed), `phone`, `address`, `social_links_json`, `tags[]`, `email_opt_in` (default true), `sms_opt_in` (default false), `notes_markdown`, `follow_up_date` (nullable), `created_by_id`, `merged_into_id` (nullable self-FK for merges).
+  - **Match resolution on intake** uses any of: (fuzzy first+last name) OR org-name fuzzy OR phone OR email. Multiple candidates → officer picks merge / attach-to-org / create-new.
+- **annual_reminders**: `contact_id`, `reminder_month` (1-12), `reminder_day_of_month` (nullable, defaults to 1 if missed), `note`, `assignee_status_key` (optional — e.g., `performance_officer` so the right role gets pinged), `lead_time_weeks` (default 4-6 — how early the reminder surfaces), `last_acted_on_at` (nullable). Surfaces on dashboards.
 - **performance_requests**:
-  - link: `contact_id` (FK → contacts, auto-resolved by requester_email)
-  - intake snapshot: `requester_name`, `requester_email`, `requester_phone`, `organization`, `event_date`, `event_start_time`, `event_end_time`, `audience_size`, `performance_type`, `notes`, `urgency` (enum: `standard` / `quick_answer`), `needs_answer_by`
+  - link: `contact_id` (FK → contacts, auto-resolved at intake; org-contact and/or person-contact)
+  - intake snapshot: `requester_first_name`, `requester_last_name`, `requester_email`, `requester_phone`, `organization`, `event_date`, `event_start_time`, `event_end_time`, `audience_size`, `performance_type`, `notes`, `urgency` (enum: `standard` / `quick_answer`), `needs_answer_by`
+  - **donation interest** (captured on form, NOT processed by portal): `donation_interest` (enum: `none` / `250` / `500` / `750` / `1000` / `other`), `donation_interest_other_text` (nullable).
   - venue (from Google Places): `venue_name`, `venue_formatted_address`, `venue_place_id`, `venue_lat`, `venue_lng`
   - travel (computed via Distance Matrix at intake, override-able): `drive_time_minutes`, `drive_distance_miles`, `call_time_minutes_before` (default 60), `return_buffer_minutes` (default 15)
-  - derived (read-only views): `availability_window_start = event_start_time - call_time_minutes_before - drive_time_minutes`, `availability_window_end = event_end_time + drive_time_minutes + return_buffer_minutes`
   - workflow: `status` (`new` → `under_review` → `ready_to_poll` → `polling` → `polling_closed` → `confirmed` / `declined` → `completed`), `assigned_officer_id`, `review_notes`, `polling_window_days`, `min_couples_required`, `response_deadline`, `include_in_next_survey`
-  - **`polling_closed` is informational, not auto-actioning.** It means "the response window expired" and shows a per-couple yes/no/maybe breakdown. The officer reads it and clicks Confirm or Decline; nothing leaves the portal until they do.
-  - outcome: `confirmed_at`, `confirmed_by_id`, `calendar_event_id` (FK → calendar_events)
+  - **`polling_closed` is informational, not auto-actioning.** It means "the response window expired" and shows a per-couple yes/no/maybe breakdown. The officer reads it and clicks Confirm or Decline; the system opens an Outlook draft via `mailto:` for the officer to send.
+  - outcome: `confirmed_at`, `confirmed_by_id`, `gcal_event_id` (the Google Calendar event ID for the confirmed performance — see §6.6)
+  - **donation post-performance:** `donation_status` (enum: `pending` / `received` / `declined` / `no_response`), `donation_actual_amount` (nullable, free-form for institutional memory), `donation_notes` (nullable).
+- **performance_roster**: `performance_request_id`, `member_id`, `role` (`performer` / `lead` / `partner` / `alternate`), `added_at`, `added_by_id`, `removed_at`, `removed_by_id`. Captures who's on the lineup; editable post-confirmation. Each insert/delete generates a notification to the affected member.
 - **private_lesson_requests**: same shape as performance_requests with `contact_id`, minus `audience_size`, plus `group_size`, `dance_type`, `experience_level`, `preferred_dates`, `price_quoted`, `assigned_instructor_ids[]`.
 - **general_inquiries**: `contact_id`, intake fields, `auto_reply_sent_at`, `needs_human`, `assigned_to_id`.
 - **survey_runs**: `run_at`, `run_type` (`weekly_auto` / `manual`), `triggered_by_id`, `performance_request_ids[]`, `private_lesson_request_ids[]`, `member_count`, `response_count`, `response_deadline`, `notes`.
 - **survey_responses**: `survey_run_id`, `member_id`, `target_type` (`performance` / `private_lesson`), `target_id`, `available` (`yes` / `no` / `maybe`), `notes`, `responded_at`. Unique on (survey_run_id, member_id, target_type, target_id).
 
-### 6.4 Email composer + threads
+### 6.4 Email history (BCC-archive ingest)
 
-- **email_threads**: `contact_id` (FK), `subject`, `role_alias` (the team-side participating alias, e.g., `performance@`), `related_type` (`performance_request` / `private_lesson_request` / `general_inquiry` / null), `related_id` (nullable), `last_message_at`, `last_message_direction` (`inbound` / `outbound`), `unread_for_role` (bool).
-- **email_messages**: `thread_id` (FK), `direction` (`inbound` / `outbound`), `from_address`, `to_addresses[]`, `cc_addresses[]`, `bcc_addresses[]` (records the Outlook BCC for outbound), `subject`, `body_html`, `body_text`, `message_id_header` (RFC Message-ID for thread matching), `in_reply_to_header`, `resend_id` (nullable, for outbound), `sent_by_id` (nullable user_id for outbound), `received_at` / `sent_at`, `template_slot` (nullable, which template was used), `attachments_json`.
-- **email_templates**: `slot` (enum: `perf_request_received`, `perf_confirmation`, `perf_decline`, `private_lesson_received`, `private_lesson_quote`, `private_lesson_decline`, `general_inquiry_ack`, `survey_invitation`, `weekly_digest`, `staleness_alert`, `magic_link_signin`, etc.), `variant` (`default` / `warm` / `formal`), `subject_template`, `body_template` (Handlebars with `{{contact.name}}`, `{{request.event_date}}`, etc.), `is_active`, `updated_by_id`, `updated_at`. Officers pick the active variant per slot in Settings.
+v6 has **no in-portal composer.** Officers compose in their existing TAMU Outlook. The portal observes via a BCC archive route. Threads are reconstructed from inbound webhooks.
 
-### 6.5 Member-facing resources, moves, alumni
+- **email_threads**: `contact_id` (FK), `subject_normalized` (subject minus `Re:` / `Fwd:` for matching), `last_message_at`, `last_message_direction` (`inbound` / `outbound`), `participants_emails[]`, `related_type` (nullable: `performance_request` / `private_lesson_request` / `general_inquiry`), `related_id` (nullable). Threads are reconstructed from `Message-ID` / `In-Reply-To` headers when available; fallback to subject + participant matching.
+- **email_messages**: `thread_id` (FK), `direction` (`inbound` / `outbound` — outbound when received via the archive BCC; inbound when received via Cloudflare-routed forwards from a team alias), `from_address`, `to_addresses[]`, `cc_addresses[]`, `subject`, `body_html`, `body_text`, `message_id_header` (RFC Message-ID), `in_reply_to_header`, `references_header`, `received_at`, `attachments_json`, `raw_headers_json`, `sent_by_user_id` (nullable — resolved from `from_address` against `users.primary_email` when possible).
+- **email_templates**: `slot` (enum: `perf_request_received`, `perf_confirmation`, `perf_decline`, `perf_followup`, `private_lesson_received`, `private_lesson_quote`, `private_lesson_decline`, `general_inquiry_ack`, `survey_invitation`, `weekly_digest`, `staleness_alert`, `magic_link_signin`, `invite_setup`, etc.), `variant` (`default` / `warm` / `formal`), `subject_template`, `body_template` (Handlebars with `{{contact.name}}`, `{{request.event_date}}`, etc.), `is_active`, `updated_by_id`, `updated_at`.
+  - **Auto-sent templates** (form acks, survey invites, magic links, weekly digest) → rendered server-side, delivered by Resend.
+  - **Officer-composed templates** (confirmation, decline, follow-up, quote) → rendered server-side into a `mailto:` URL with prefilled subject + body that opens the officer's default mail client (TAMU Outlook). Officer reviews, edits, sends. Auto-BCC rule captures the sent message into the archive.
 
-- **resources**: `title`, `description`, `category` (`Constitution` / `Choreography` / `Contracts` / `Historical` / `Sponsor Decks` / `Other`), `file_url` (Supabase Storage), `file_type`, `visibility` (`members_only` / `members_and_alumni` / `officers_only`), `uploaded_by_id`, `uploaded_at`. The current constitution is just one row with `category = Constitution`; older versions stay in the same table with version notes in the title.
-- **moves**: `name`, `aliases[]`, `category`, `difficulty`, `description_markdown` (incorporates step-by-step, safety notes, partner requirements), `originated_by`, `originated_year`, `video_links[]` (YouTube URLs — typically private/unlisted on the team channel), `status` (`draft` / `published` / `archived`), `display_order`, `created_by_id`, `updated_by_id`. **No `public_safe` toggle and no separate video/contribution tables in v1** — access to videos is governed by YouTube channel membership; alumni contributions happen offline.
-- **alumni_profiles**: `member_id` (FK, nullable for pre-portal alumni who self-registered), `graduation_year`, `current_city`, `current_role`, `what_im_up_to`, `contact_permission` (enum: `visible_to_members_only` / `visible_to_alumni_too` / `private`), `email`, `phone` (opt-in), `status` (`draft_auto_created` / `active` / `unverified`), `verified_at`, `verified_by_id`. Auto-created as `draft_auto_created` when a member is moved to `graduated`; the alumnus completes it on next sign-in and the system marks it `active`.
+### 6.5 Member-facing resources, moves, alumni, notes, goals
 
-### 6.6 Calendar
+- **resources**: `title`, `description`, `category` (`Constitution` / `Choreography` / `Contracts` / `Historical` / `Sponsor Decks` / `Other`), `file_url` (Supabase Storage), `file_type`, `visibility` (`members_only` / `members_and_alumni` / `officers_only`), `uploaded_by_id`, `uploaded_at`.
+- **moves**: `name`, `aliases[]`, `category`, `difficulty`, `description_markdown`, `originated_by`, `originated_year`, `video_links[]` (YouTube URLs — typically private/unlisted on the team channel), `status` (`draft` / `published` / `archived`), `display_order`, `created_by_id`, `updated_by_id`.
+- **alumni_profiles**: `member_id` (FK, nullable for pre-portal alumni who self-registered), `graduation_year`, `current_city`, `current_address` (optional, alumnus-controlled), `current_role`, `what_im_up_to`, `contact_permission` (enum: `visible_to_members_only` / `visible_to_alumni_too` / `private`), `email`, `phone` (opt-in), `status` (`draft_auto_created` / `active` / `unverified`), `verified_at`, `verified_by_id`. Auto-created as `draft_auto_created` when a member is moved to `graduated`.
+- **meeting_notes**: `meeting_date`, `meeting_type` (free-text — "Officer meeting" / "All-team" / etc.), `attendees_member_ids[]`, `agenda_markdown`, `decisions_markdown`, `notes_markdown`, `created_by_id`, `updated_by_id`.
+- **action_items**: `meeting_note_id` (nullable), `description`, `assignee_member_id`, `due_date`, `completed_at` (nullable), `created_by_id`. Surfaces on assignee's dashboard.
+- **long_term_goals** (single document, structured): `body_markdown`, `updated_by_id`, `updated_at`. Free-form president-maintained doc; revision history kept in `long_term_goals_revisions` snapshot table for handover continuity.
 
-- **calendar_events**: `event_type` (`performance` / `public_lesson` / `private_lesson` / `tryout` / `team_event` / `rehearsal`), `title`, `description_markdown`, `location_name`, `location_address`, `start_at` (timestamptz), `end_at`, `all_day` (bool), `source_type` (`performance_request` / `public_lessons` / etc., nullable for ad-hoc), `source_id` (nullable), `color`, `is_public` (bool — eligible for public site display if true), `created_by_id`.
-- **calendar_attendees**: `calendar_event_id`, `member_id`, `role` (`performer` / `instructor` / `optional` / `partner`), `rsvp_status` (`going` / `not_going` / `tentative` / `unset`).
-- **ical_tokens**: `user_id`, `token` (random, signed), `created_at`, `revoked_at`. The personal iCal feed endpoint accepts a token and returns events for that user's `member_id`.
+### 6.6 Calendar (Google Calendar 2-way sync)
+
+Google Calendar is the source of truth for events. Postgres stores **sync state and portal-side metadata** that doesn't fit in a Google Calendar event.
+
+- **calendar_events** (portal-side cache + metadata): `gcal_event_id` (unique, the Google Calendar event ID — this is the join key), `gcal_calendar_id` (which calendar — typically just the one team calendar), `event_type` (`performance` / `public_lesson` / `private_lesson` / `tryout` / `practice` / `officer_meeting` / `retreat` / `workshop` / `other`), `source_type` (`performance_request` / `public_lessons` / etc., nullable for ad-hoc), `source_id` (nullable), `last_synced_at`, `etag` (Google's etag for conflict detection). All other fields (title, time, recurrence, attendees, location, description) live in Google Calendar itself — fetched/written via the API.
+- **calendar_event_member_links**: `gcal_event_id`, `member_id`, `role` (`performer` / `instructor` / `optional` / `partner`). Tracks the team-internal roster for events Google Calendar's attendee field doesn't fully capture (e.g., partner pairings, fallback alternates).
+- **gcal_sync_state**: `last_sync_token` (Google's incremental sync token), `last_full_sync_at`, `watch_channel_id`, `watch_expiration` (Google Calendar push notification channel — refreshed before expiration).
+- **ical_tokens**: `user_id`, `token` (random, signed), `created_at`, `revoked_at`. The personal iCal feed endpoint accepts a token and returns the user's assigned events (filtered from calendar_events + member_links) — kept as an alternative for members who don't want to subscribe to the full team calendar.
 
 ---
 
@@ -483,10 +631,10 @@ Four public forms. Each Vercel Function writes to Postgres and triggers the auto
 
 | Form | Fields | What happens |
 |---|---|---|
-| **Performance request** | name, org, email, phone, event date, **start + end time**, **venue address (Google Places autocomplete + validation)**, audience size, performance type, notes, **urgency** flag (default Standard) | Resolves/creates `contacts` row. Inserts `performance_requests` row, status=`new`. Backend immediately calls Distance Matrix to compute `drive_time_minutes` and `drive_distance_miles` and store on the row. Resend auto-reply sent from `performance@` (BCC team Outlook), persisted as first message of an email_thread on the contact. PR officer notified in portal. |
-| **Private lesson request** | name, email, phone, group size, preferred dates, dance type, experience, notes, urgency flag | Resolves/creates contact → inserts row → auto-reply via composer thread → lessons officer notified |
-| **General contact** | name, email, phone (optional), subject, message | Resolves/creates contact → inserts `general_inquiries` → keyword-matched auto-reply (links matching FAQ entry if found, else generic) → `needs_human=TRUE` flag for officer follow-up |
-| **Newsletter signup** | email | Adds to `newsletter_subscribers` table (still resolves to a contact if one exists by that email) |
+| **Performance request** | **first name, last name**, organization, email, phone, event date, **start + end time**, **venue address (Google Places autocomplete + validation)**, audience size, performance type, notes, **urgency** flag (default Standard), **donation interest** ($250 / $500 / $750 / $1,000 / Other / Not at this time) | Resolves/creates `contacts` row (matches on first+last name OR org OR phone OR email — officer prompted to merge if ambiguous). Inserts `performance_requests` row, status=`new`. Backend immediately calls Distance Matrix for drive time. Resend auto-reply sent from `performance@aggiewranglers.com`, persisted as first message of an email_thread on the contact. Performance officer notified in portal. |
+| **Private lesson request** | first name, last name, email, phone, group size, preferred dates, dance type, experience, notes, urgency flag | Same contact resolution → inserts row → auto-reply sent from `lessons@aggiewranglers.com` → lessons coordinator notified |
+| **General contact** | first name, last name, email, phone (optional), subject, message | Same contact resolution → inserts `general_inquiries` → keyword-matched auto-reply (links matching FAQ entry if found, else generic) → `needs_human=TRUE` flag for officer follow-up |
+| **Newsletter signup** | email | Adds to `newsletter_subscribers` table; resolves/creates contact |
 
 Spam: Cloudflare Turnstile + per-IP rate limit (Upstash).
 
@@ -496,23 +644,26 @@ Spam: Cloudflare Turnstile + per-IP rate limit (Upstash).
 
 ### 8.1 Performance request lifecycle
 
-Review gate → batched weekly survey → response window closes → **officer manual confirm/decline via in-portal composer**. The portal is the entire stage; no Gmail drafts, no auto-confirmation.
+Review gate → **Wednesday combined availability survey** → response window closes → officer manual confirm/decline via TAMU Outlook (portal opens prefilled draft via `mailto:`). No auto-send for client-facing emails, ever.
 
 ```
 PHASE A: Intake & officer review
 [Form submitted with venue from Places autocomplete]
-   → backend resolves/creates contact by requester_email
-   → calls Distance Matrix: origin=building, dest=venue
+   → backend resolves/creates contact (matches on first+last, org,
+     phone, or email; officer prompted if multiple candidates)
+   → calls Distance Matrix: origin=practice location, dest=venue
    → drive_time_minutes, drive_distance_miles persisted on the row
+   → donation interest captured (informational; not processed)
    → performance_requests row inserted with contact_id, status=new
    → templated auto-reply ("we got your request") sent via Resend
-     from performance@ to requester, BCC team Outlook mailbox,
-     persisted as the first message of an email_thread bound to the contact
-[PR officer review tab]:
-   - Decline → Compose decline button → composer opens prefilled
-     from perf_decline template → officer edits → Send
+     from performance@aggiewranglers.com to requester; archive route
+     captures it as the first message in the contact's email thread
+[Performance officer review tab]:
+   - Decline → "Compose decline" → opens TAMU Outlook with prefilled
+     subject/body via mailto: → officer edits, sends from Outlook
      → status=declined
-   - Need info → Compose follow-up button → prefilled template → Send
+     → auto-BCC rule captures sent message into the contact's thread
+   - Need info → "Compose follow-up" → same mailto: flow
      → keep status=under_review
    - Approve to poll → status=ready_to_poll
         with overridable:
@@ -522,18 +673,22 @@ PHASE A: Intake & officer review
           drive_time_minutes, call_time_minutes_before, return_buffer_minutes
 
 PHASE B: Inclusion rules (run at each survey send)
-A request goes in a survey for a member IFF:
+A performance request goes in the survey for a member IFF:
   1. status ∈ {ready_to_poll, polling}
   2. include_in_next_survey = TRUE
   3. event_date is within polling_window_days from now
   4. that member has no survey_response for this target yet
 
-PHASE C: Survey delivery
-[Vercel cron Sunday 18:00 CT, configurable via site_settings]
+A private lesson goes in the survey for an instructor pool member
+under the same rules (see §8.2).
+
+PHASE C: Combined Wednesday survey delivery
+[Vercel cron Wednesday 18:00 CT, configurable via site_settings]
    OR
 [Officer clicks "Send survey now"]
-   IFF auto_send_weekly_survey = TRUE (officer can disable)
-   → compute per-member item lists
+   IFF auto_send_weekly_survey = TRUE
+   → compute per-member item lists (performances + private lessons
+     combined into ONE email per member)
    → create survey_runs row with response_deadline = now + response_deadline_days
    → send ONE consolidated email per member via Resend with a
      signed-token link to their RSVP page (no login required)
@@ -544,26 +699,30 @@ PHASE C: Survey delivery
    → status flips ready_to_poll → polling on first send
 
 PHASE D: Response window closes (informational only)
-[Daily cron checks response_deadline]
+[Daily cron checks response_deadline; e.g., Saturday for a Wednesday send]
    When response_deadline has passed:
      → status flips to polling_closed
-     → dashboard surfaces the request to PR officer with a per-couple
-       yes/no/maybe breakdown:
+     → dashboard surfaces the request to the performance officer with
+       a per-couple yes/no/maybe breakdown:
          "Polling closed · 5 of 8 yes · 2 no · 1 no response · review needed"
    → NOTHING is sent. The officer is the only thing that triggers an email.
 
-PHASE E: Officer manual decision
-[PR officer reviews actual responses + any conflicts + other context]
-   - Confirm → Compose confirmation button → in-portal composer opens
-     prefilled from perf_confirmation template (substituting confirmed couples,
-     call time, drive time, location) → officer edits → Send
+PHASE E: Officer manual decision (weekend before Monday digest)
+[Officer reviews actual responses + conflicts + history]
+   - Confirm → "Compose confirmation" → opens TAMU Outlook draft
+     prefilled with confirmed couples, call time, drive time, location
+     → officer edits, sends from Outlook
      → status=confirmed
-     → calendar_events row created with attendees = couples who said yes
-   - Decline → Compose decline button → composer opens prefilled
-     from perf_decline template → officer edits → Send
-     → status=declined
-   - Need to renegotiate → Compose follow-up → keeps status=polling_closed
-     until officer reaches a decision
+     → Google Calendar event created via API with confirmed members as
+       attendees; performance_roster rows persisted
+     → auto-BCC rule captures sent confirmation into the contact's thread
+   - Decline → "Compose decline" → same mailto: flow → status=declined
+   - Need to renegotiate → "Compose follow-up" → keeps status=polling_closed
+
+PHASE F: Post-performance follow-up
+[After event_date passes]
+   - Officer can mark donation status (Received / Declined / No response / Pending)
+   - Officer can add post-event notes that surface on the contact's profile
 ```
 
 **Officer overrides:**
@@ -575,13 +734,15 @@ PHASE E: Officer manual decision
 | `response_deadline_days` | global default + per request | Default 3 days. Quick-answer requests: shorten to 24h. Sleepy summer survey: extend to 5 days. |
 | `include_in_next_survey` | per request toggle | "Don't ask this Sunday, still negotiating with requester." |
 | `auto_send_weekly_survey` | global | Flip OFF during breaks / finals. |
-| `weekly_survey_day` / `time` | global | When the auto-send runs (default Sunday 18:00 CT). |
+| `weekly_survey_day` / `time` | global | When the auto-send runs (default **Wednesday 18:00 CT**). |
 | Manual add | per request | Pull in something outside the window. |
 | Urgency flag | per request | Surfaces visually in the inbox; no automated workflow branch. |
 
 ### 8.2 Private lesson request lifecycle
 
-Same review gate, contact resolution, response window, and manual confirm/decline as performances. Audience for the survey is the instructor pool, not the whole team. Lessons officer can bypass the survey for low-friction asks (`include_in_next_survey = OFF`) and reach out directly via the in-portal composer.
+Same review gate, contact resolution, response window, and manual confirm/decline as performances — and **merged into the same Wednesday email** to members rather than sent as a second survey. Audience for the private-lesson items is the instructor pool only; the same member sees both performance and private-lesson asks in the one weekly message.
+
+Lessons coordinator can bypass the survey for low-friction asks (`include_in_next_survey = OFF`) and reach out directly via the Outlook draft flow.
 
 ### 8.3 General inquiry auto-reply
 
@@ -629,54 +790,75 @@ The derived availability window then drives:
 
 ### 8.6 Email policy
 
-**All external email lives inside the portal.** Two paths:
+**No in-portal composer.** Officers compose in their existing TAMU Outlook (where they already live). The portal observes and captures.
 
-1. **Auto-sent (no human in the loop)** — Resend delivers immediately on a system event. Used for: form submission acknowledgments, magic-link sign-in, RSVP-link delivery, weekly Monday digest, staleness alerts to officers. All templated; nothing personal in the wording that warrants review.
-2. **Officer-composed (always reviewed before send)** — Officer opens the in-portal composer from a request detail page or a contact profile. Template is selected; variables are substituted; officer edits freely; officer hits Send. Resend delivers from the role alias to the recipient and BCCs the team Outlook mailbox so a sent record lands in their normal inbox. The full message + thread is stored in Postgres and shown on the contact's profile forever.
+Three flows handle everything:
 
-**Inbound mail** is handled by per-mailbox forwarding rules (one rule per role alias) that POST the message to a portal webhook. The webhook matches to an existing thread (by `Message-ID` / `In-Reply-To` headers, then by sender email + recent subject), or creates a new thread on the relevant contact.
+**1. Auto-sent (no human in the loop) — Resend delivers immediately on a system event.** Used for: form submission acknowledgments, magic-link sign-in, invite-link emails, RSVP-link delivery, weekly Wednesday survey, weekly Monday digest, staleness alerts to officers. All templated; nothing personal in the wording that warrants review.
 
-Templates are editable in the portal Settings tab. We ship with sensible defaults (one warm-casual variant and one formal variant per slot) and the team can revise wording without code changes. No AI generation — the templates are plain Handlebars-style variable substitution; the officer's edits are the personalization layer.
+- FROM addresses: `wranglers@aggiewranglers.com` (generic system mail), `performance@aggiewranglers.com` (performance form acks), `lessons@aggiewranglers.com` (lessons form acks). All authenticated on the team-owned domain in Resend.
 
-**Why in-portal instead of Gmail drafts:** the team is on Office 365, not Gmail; sending from `performance@` (with Outlook BCC) gives officers the sent record they expect without anchoring the system to a specific mail provider; and storing every message in Postgres is what makes the Contacts tab into institutional memory. The Gmail-draft-API approach in v4 would have lost both the cross-officer thread history and the contact-centric view.
+**2. Officer-composed (always reviewed before send) — drafted in TAMU Outlook via portal `mailto:` link.**
+
+- Officer clicks a "Compose confirmation" / "Compose decline" / "Compose follow-up" / etc. button in the portal.
+- The button generates a `mailto:` URL with prefilled subject and body, substituting variables from the related request, contact, and survey results.
+- Officer's default mail client (TAMU Outlook on their computer/phone) opens with the draft. They edit freely and hit Send from Outlook.
+- **Sent from their own TAMU Outlook account** (`performance@wranglers.tamu.edu` etc.) — recipient sees a real human's TAMU email, replies land in the officer's real inbox.
+
+**3. Inbound + thread reconstruction — Cloudflare Email Routing + auto-BCC archive.**
+
+- **Inbound to team-domain aliases** (e.g., a requester replies to the Resend auto-reply from `performance@aggiewranglers.com`): Cloudflare Email Routing forwards to the officer's TAMU Outlook (`performance@wranglers.tamu.edu`). Officer sees and handles in Outlook.
+- **CRM capture of all officer-sent mail:** each officer sets up a **one-time auto-BCC rule** in their TAMU Outlook: "always BCC `archive@aggiewranglers.com` on sent mail." Cloudflare Email Routing forwards that archive address to a Cloudflare Worker → portal webhook. The webhook parses headers (Message-ID, In-Reply-To, References, From, To, CC, subject, body), matches to an existing thread or creates a new one, attaches to the right contact.
+- **Inbound replies captured the same way** — the auto-BCC sees forwarded inbound mail when the officer replies to it, since the reply quotes the original.
+
+**Why this approach:**
+- **No A&M IT involvement.** All email infrastructure lives on the team-owned domain. Resend authenticates on `aggiewranglers.com`; Cloudflare Email Routing is free; archive ingest is a single Cloudflare Worker.
+- **No new inboxes for officers to check.** Replies forward straight to their existing TAMU Outlook.
+- **No in-portal composer to learn or maintain.** Officers work in Outlook where they already work.
+- **Institutional memory still happens.** The BCC archive captures every officer-sent message, stitches threads together by RFC headers, attaches to the contact, and surfaces on the Contacts tab forever — across officer transitions.
+
+Templates editable in Settings. Ship with sensible defaults (warm + formal variants per slot). No AI generation in v6 — templates are plain variable substitution; the officer's edits in Outlook are the personalization.
 
 ---
 
-## 9. Calendar (in-portal, with iCal export)
+## 9. Calendar (Google Calendar 2-way sync)
 
-The calendar lives in Postgres and renders natively in the portal. Google Calendar / Microsoft Graph two-way integration is deferred to a later phase; v1 ships iCal feeds for external subscription.
+**The team's existing Google Calendar is source of truth.** The portal is a UI layer that reads from and writes to it via the Google Calendar API. No in-portal calendar duplicates the data.
 
-**Source-of-truth event creation:**
-- Confirmed performances → `calendar_events` row with start/end derived from the availability window, location from venue, attendees = couples who said Yes.
-- Public lesson sessions where `visible_to_public = TRUE` → events with instructor attendees.
-- Private lessons confirmed → events with assigned instructor(s).
-- Tryout cycle dates → events (no attendees).
-- Ad-hoc team events created by any officer (rehearsals, socials, meetings).
+**Setup:** a one-time Google Cloud project with Calendar API enabled + a service account that has write access to the team's calendar. The service account credential lives as a secret in Vercel. No A&M IT involvement; no Google Workspace seat required (works with a personal Google account that owns the calendar).
 
-**Portal calendar view:** month / week / day / agenda views (FullCalendar or similar), filterable by event type, "show only my events" toggle, color-coded by type. RSVP buttons inline on events that need attendance.
+**Event lifecycle:**
 
-**Per-member personalized iCal feed:**
-- Each member's dashboard shows a "Subscribe to my schedule" URL.
-- The URL is a signed token endpoint (`/api/ical/[token].ics`) that returns an `.ics` feed of only the events that member is assigned to.
-- They subscribe once in Apple Calendar / Google Calendar / Outlook and stay in sync forever; updates flow on every cache TTL refresh.
-- Token rotation supported from Settings if a feed leaks.
+- **Confirmed performances** → portal POSTs a calendar event with start = `event_start - call_time - drive_time`, end = `event_end + drive_time + return_buffer`, location = venue address, description = requester notes + assigned roster, attendees = members' emails (Calendar sends them an invite they can RSVP from anywhere).
+- **Public lesson sessions** where `visible_to_public = TRUE` → events with instructor attendees, recurring per session schedule.
+- **Confirmed private lessons** → events with assigned instructor(s).
+- **Tryout cycle dates** → events (no attendees).
+- **Recurring practices, officer meetings, retreats, workshops, ad-hoc team events** → created in the portal's Team Calendar tab; recurrence rules (RRULE) supported natively.
+
+**2-way sync mechanics:**
+- Portal → Calendar: every create/update/delete in the portal writes to Calendar via the API. Etag-based optimistic concurrency.
+- Calendar → Portal: Google's push notification (`watch`) on the calendar fires a webhook to the portal on every change. Portal fetches incremental updates via `events.list` with the saved `syncToken`. Watch channel is refreshed before expiration (7-day rotation).
+- Conflict resolution: last-writer-wins for content fields; portal-side metadata (event_type, source_type/id, roster links) is never touched by the Calendar.
+
+**Subscriptions on member phones:**
+- Most members will subscribe directly to the team Google Calendar (sharing setting: "see all event details" for current members, "free/busy only" for the public).
+- Per-member personal iCal feed remains available as a filtered alternative for members who only want their assigned events (kept from v5).
+
+**Calendar ownership transfer on president handover:**
+- Google Calendar supports transferring ownership of a shared calendar to another Google account.
+- Outgoing president runs the transfer; incoming president becomes the owner. Service account stays attached. Same calendar, no event loss, no event duplication.
 
 **Weekly digest email (default Monday 08:00 CT, configurable):**
-- For each `current` member: gather their assigned events for the next 7 days from `calendar_events`.
+- For each `current` member: gather assigned events for the next 7 days from the synced calendar_events cache.
 - Send a single Resend email: "Here's where you're expected this week — Sat 5/16 wedding in Brenham (3 PM call), Wed 5/20 CW1 class at the building (5:15 PM call)…"
 - Members can opt out per-account.
-
-**Deferred to a later phase — two-way sync:**
-- Microsoft Graph integration for Outlook calendar write-back (officers see assigned events in their team Outlook calendar without an iCal subscription).
-- Google Calendar service-account writes for members who prefer Google.
-- Justification for deferral: iCal feeds cover the read use case; the only thing two-way buys is "RSVP from your phone calendar app instead of opening the portal," which is nice-to-have, not core. We can layer it on without schema changes.
 
 ---
 
 ## 10. SEO migration plan
 
 - [ ] Crawl current site (Screaming Frog / `wget --mirror`) → export every URL, title, meta description, H1.
-- [ ] Map every legacy URL 1:1 to a new URL; 301 in `next.config.js` redirects for any deltas.
+- [ ] Map every legacy URL 1:1 to a new URL; 301 in `next.config.js` redirects for any deltas. **`/our-building` → `/` (301)** since the team no longer has that building.
 - [ ] Preserve `<title>`, meta description, primary H1 at launch; iterate after.
 - [ ] Generate `sitemap.xml` and `robots.txt` at build.
 - [ ] JSON-LD: `Organization`, `Event` (tryouts/lessons), `VideoObject` (videos), `FAQPage`.
@@ -721,97 +903,98 @@ If we later decide we *want* AI-generated email drafts (e.g., for non-standard r
 
 ---
 
-## 13. Build phases & timeline
+## 13. Build phases
 
-~6–8 weeks of focused work; **single launch day** (public site + portal cut over together). Phases below are sequencing for the build, not incremental ship dates.
+**Single launch day** — public site + portal cut over together. Phases below are sequencing for the build, not incremental ship dates. No time estimates intentionally — work is parallelizable once the schema is locked.
 
-### Phase 0 — Foundation (3–4 days)
+### Phase 0 — Foundation
 - Repo + Next.js scaffold + Tailwind + shadcn/ui + Drizzle + theme-token system.
-- Supabase project: Postgres schema, Auth providers (magic link + Microsoft Entra + Google OAuth), Storage buckets.
-- Resend domain verification on the team-owned sending domain (DKIM/SPF/DMARC).
+- Supabase project: Postgres schema (including `permission_statuses`, `permissions`, `user_statuses`), Auth (magic-link email), Storage buckets.
+- Domain setup: team-owned domain on Cloudflare DNS; Resend authenticated (DKIM/SPF/DMARC); Cloudflare Email Routing aliases configured (`performance@`, `lessons@`, `wranglers@`, `archive@`).
+- Google Cloud project + service account with shared write access to the team's existing Google Calendar.
 - Vercel project with both domains attached.
-- Bootstrap officer whitelist; first-login pending-approval flow.
+- Bootstrap: pre-create officer profiles + setup links so they can sign in day one.
 - CI: Vercel previews per PR with Supabase branches.
 
-### Phase 1 — Public site shell + design system (4–5 days)
+### Phase 1 — Public site shell + design system
 - Tailwind theme tokens, typography, component library (placeholder brand, refresh-ready).
-- All legacy URLs in place with hardcoded content.
+- All legacy URLs in place with hardcoded content; `/our-building` 301 → `/`.
 - Greenfield image migration from current Wix site → Supabase Storage; "needs rephoto" flag list handed off.
 - Lighthouse target: 95+ across the board.
 
-### Phase 2 — Portal foundation + Contacts + Members (5–6 days)
-- Auth-gated layout, role-aware navigation, sign-in screen with all three providers.
-- Dashboard skeleton.
-- **Members CRUD** with photo uploads to Supabase Storage; phone field collected from day one for future SMS.
-- **Contacts entity** end-to-end: auto-create-on-form-submit, manual create, profile view, search, merge, notes, tags, follow-up date. (Email thread history attaches in Phase 4.)
-- Site Content CMS tab covering site_settings, FAQ, sponsors, announcements, banquet content.
+### Phase 2 — Portal foundation + Permissions + Members + Contacts
+- Auth-gated layout, magic-link sign-in screen, invite-link setup flow.
+- **Permission matrix** end-to-end: status CRUD, matrix grid editor, user-status assignment, runtime enforcement in middleware + RLS.
+- Dashboard skeleton (action items keyed off user statuses).
+- **Members CRUD** with photo uploads to Supabase Storage; phone field collected from day one.
+- **Contacts entity** end-to-end: person + organization types, auto-create on form submit with matching logic, manual create, profile view, search, merge, notes, tags, annual reminders. (Email history attaches in Phase 4.)
+
+### Phase 3 — Public forms + auto-replies
+- Four forms (performance with **donation field**, private lesson, contact, newsletter) writing to DB and resolving/creating contacts via matching logic.
+- Resend auto-replies sent from team-domain aliases; queued for archive-thread attachment in Phase 4.
+
+### Phase 4 — Email archive ingest + Webmaster + Performance management + Wednesday survey + drive-time
+- **Email infrastructure:**
+  - Cloudflare Worker on `archive@aggiewranglers.com` route → portal webhook.
+  - Thread reconstruction by `Message-ID` / `In-Reply-To` / subject + participant heuristics.
+  - Attach to contact, persist in `email_messages`.
+  - `mailto:` link generator for officer-composed templates (confirmation, decline, follow-up).
+- **Webmaster (site-content CRUD) tab** — covering site_settings, FAQ, sponsors, announcements, banquet content, video listings, profile cards, tryout cycle.
 - Public site reads from DB; on-demand revalidate via webhook from portal saves.
-
-### Phase 3 — Public forms + auto-replies (2 days)
-- Four forms (performance, private lesson, contact, newsletter) writing to DB and resolving/creating contacts.
-- Resend auto-replies sent from the role aliases; persisted as first message of an email_thread on the contact.
-- Officer notifications in portal.
-
-### Phase 4 — Email composer + thread store + Performance management + weekly survey + drive-time (8–10 days)
-
-This is the longest phase because the in-portal composer is foundational for everything downstream (declines, confirmations, follow-ups, private lesson quotes) and the contact/thread storage is what makes the Contacts tab earn its keep.
-
-- **Email composer + thread storage:**
-  - `email_threads` / `email_messages` schema + RLS.
-  - Resend outbound from role aliases (`performance@`, `lessons@`, `bookings@`) with team Outlook BCC.
-  - Per-mailbox inbound forwarding rules → webhook → match-to-thread / new-thread logic.
-  - Template selection + variable substitution UI; officer free-edit; Send.
 - **Performance Management tab end-to-end:**
-  - Review gate, status transitions, per-request overrides.
-  - Google Places autocomplete on intake form + Distance Matrix call to compute drive time + officer overrides.
+  - Review gate, status transitions, per-request overrides, donation interest + donation status tracking.
+  - Google Places autocomplete on intake form + Distance Matrix call.
   - Email templates table + admin UI to edit them.
-  - Weekly Vercel cron at Sunday 18:00 CT (configurable) computes inclusion, sends consolidated survey emails.
+  - Wednesday 18:00 CT (configurable) cron computes inclusion, sends combined performance + private-lesson availability emails.
   - Member RSVP page (token-based, also accessible logged-in) showing real availability windows.
-  - **Response window closes** → request surfaces on PR officer dashboard with response breakdown.
-  - **Manual confirm / decline buttons** → open in-portal composer prefilled from template → officer edits → Send.
-  - Confirmed performances create `calendar_events` rows with attendees.
+  - **Response window closes** → request surfaces on dashboard with response breakdown.
+  - **Manual confirm / decline buttons** → open Outlook draft via `mailto:` → officer sends → BCC archive captures.
+  - **Editable performance rosters** post-confirmation; notifications to affected members.
 
-### Phase 5 — Lessons management + scheduling (4–5 days)
+### Phase 5 — Lessons management + scheduling
 - Public sessions: schedule semester ahead, visibility toggle, `publish_at`.
-- Private lesson workflow (review → optional survey → assignment → quote via in-portal composer).
+- Private lesson workflow integrated into the same Wednesday survey (merged with performance availability per member).
 - Instructor pool management.
-- Confirmed lessons create `calendar_events` rows.
 
-### Phase 6 — Calendar (in-portal) + iCal feeds + weekly digest (3–4 days)
-- In-portal calendar view (FullCalendar or similar) sourced from `calendar_events`.
-- Per-member signed iCal feed at `/api/ical/[token].ics`.
+### Phase 6 — Google Calendar 2-way sync + weekly digest
+- Service-account Google Calendar writes for confirmed performances, lessons, tryouts, ad-hoc events.
+- Recurring events (practices, officer meetings) via RRULE.
+- Push notification (watch channel) → portal webhook → incremental sync.
+- Personal iCal feed available for members who want filtered subscriptions.
 - Monday 08:00 CT (configurable) weekly digest cron via Resend.
-- **Note:** Microsoft Graph / Google Calendar two-way sync is **NOT in this phase**; it's a deferred later phase.
 
-### Phase 7 — Resources, Move Library, Alumni (3–4 days)
+### Phase 7 — Resources, Move Library, Alumni, Meeting Notes, Long-Term Goals
 - Resources tab: file uploads to Supabase Storage, categories, visibility rules. Constitution PDF lands here.
-- **Move Library (scoped):** moves CRUD with YouTube link list, filters/search. Officers edit directly. **No alumni contribution queue, no public-safe per-move toggle, no in-portal video uploads** — videos live on the team's private YouTube channel(s); access governed by YouTube channel membership.
-- Alumni directory: graduation flow auto-creates draft alumni_profiles, self-registration path for pre-portal alumni, president (or designate) approval queue.
+- **Move Library (scoped):** moves CRUD with YouTube link list, filters/search. Officers edit directly.
+- Alumni directory: graduation flow auto-creates draft `alumni_profiles`, self-registration path for pre-portal alumni, approval queue.
+- Meeting Notes tab: date, attendees, agenda, decisions, action items with assignees + due dates.
+- Long-Term Goals tab: free-form markdown doc with revision history.
 
-### Phase 8 — `/watch` + homepage polish (1–2 days)
-- Three video subsections from DB.
-- Music Videos seeded with Midland / Randy Rogers / Ella Langley.
+### Phase 8 — Performance Stats Dashboard + `/watch` + homepage polish
+- Per-member attendance %, per-performance roster view, individual performance history, team-wide stats.
+- Three video subsections from DB; Music Videos seeded with Midland / Randy Rogers / Ella Langley.
 - 4-CTA hero, featured video, announcement banner.
 
-### Phase 9 — SEO migration + launch (2–3 days)
-- Redirects (every legacy URL → new equivalent), sitemap, structured data, OG images.
+### Phase 9 — SEO migration + launch
+- Redirects (every legacy URL → new equivalent including `/our-building` → `/`), sitemap, structured data, OG images.
 - Stage on `staging.aggiewranglers.com` for officer review.
 - **Single-day cutover:** public site + portal both go live; Wix DNS flipped, Search Console verified.
 
-### Phase 10 — Officer handoff (2 days)
+### Phase 10 — Officer handoff
 - Loom recordings per officer role.
-- Printable cheat sheets.
+- Printable cheat sheets including the one-time auto-BCC rule setup in TAMU Outlook for each officer.
 - Documented re-consent / token-rotation process for officer transitions.
+- Documented Google Calendar ownership-transfer process for president handover.
 
 ### Deferred to "v1.1" (planned, not in launch)
+- **Social media management tab** — cross-platform posting + AI variant generation. Team can use Buffer or similar separately until then. See IDEAS.md.
+- **Online courses + Coaching service** — separate workstream from website/portal. See IDEAS.md.
+- **Payments via SOFC Marketplace** — when the team is ready to consolidate or expand commerce.
 - **SMS via Twilio** — day-of reminders, RSVP last-call. Schema and opt-in collection are in v1.
-- **Microsoft Graph two-way calendar sync** — write events into officers' Outlook calendars and reflect inbound RSVP changes.
-- **Microsoft Graph mail polling** to replace per-mailbox forwarding rules with native inbox sync.
-- **Stripe payments** — when next pricing change happens; until then Flywire stays.
-- **Embedded merch gallery** — currently link-out only.
+- **Microsoft Graph mail polling** — could replace the BCC-archive approach for richer inbox features. Currently no need.
 - **Move Library video upload + alumni contribution queue** — if YouTube-channel model proves insufficient.
 
-**Total: ~6–8 weeks** of focused work. Phases 2, 4 are critical path; everything else can be parallelized once the schema is locked.
+Phases 2, 4 are critical path. Phases 5–8 can run in parallel once schema is locked.
 
 ---
 
@@ -829,13 +1012,14 @@ Rough usage we're sizing for:
 | Service | Free tier limit | What we'll use | Cost |
 |---|---|---|---|
 | Vercel Hobby | 100 GB bandwidth, 100 GB-hr compute, 1M edge req/mo, 2 cron schedules | <5% of any of these | $0 |
-| Supabase Free | 500 MB DB, 1 GB storage, 50K MAU, Auth (magic link + OAuth providers) + RLS included | <20% on every axis | $0 |
+| Supabase Free | 500 MB DB, 1 GB storage, 50K MAU, Auth (magic link) + RLS included | <20% on every axis | $0 |
 | Upstash Redis | 10K commands/day, 256 MB | <1K commands/day | $0 |
-| Resend Free | 3,000 emails/mo, 100/day | ~400/mo (auto-replies + magic links + survey + digest + composer sends), ~50 peak/day | $0 |
-| Microsoft Entra OAuth | Free with M365 tenant | — | $0 |
-| Google OAuth | Free | — | $0 |
-| Google Maps Platform | $200/mo free credit via Google Cloud | <$1 of usage | $0 |
-| Cloudflare Turnstile | Free, unlimited | — | $0 |
+| Resend Free | 3,000 emails/mo, 100/day | ~300/mo (auto-replies + magic links + survey + digest), ~40 peak/day | $0 |
+| Cloudflare Email Routing | Free, unlimited aliases | All inbound team-domain forwards + archive route | $0 |
+| Cloudflare Workers | 100K requests/day free | Archive ingest worker | $0 |
+| Google Calendar API | Free with generous quotas | 2-way sync; well under quota | $0 |
+| Google Maps Platform | $200/mo free credit | <$1 of usage | $0 |
+| Cloudflare Turnstile | Free, unlimited | Spam protection on public forms | $0 |
 | Domain renewal | — | ~$15/yr | ~$1.25/mo |
 | **Total ongoing** | | | **~$1.25/mo** |
 
@@ -864,8 +1048,8 @@ None of these are likely within the first year+. The plan is **free + $15/yr dom
 | Maintenance burden across officer transitions | Yearly handoff docs; admin role transferred at officer turnover; clear "you can disable the portal and still run a public site" exit. |
 | SEO drop during migration | 1:1 redirect map; preserve titles/H1s; stage and verify in Search Console. |
 | Bad DB migration breaks portal *and* site | Migrations gated on staging; preview deploys use branched DB; Supabase nightly backups (free tier: 7-day point-in-time). |
-| Inbound mail forwarding fragile | Per-mailbox forwarding rules are simple but break if an officer changes their Outlook settings. Mitigation: documented setup, monitoring dashboard for unmatched inbound, plan to replace with Graph polling in v1.1. |
-| Auth provider issue locks officers out | Three providers (magic link + Entra + Google) — magic link is the always-works fallback if one provider misconfigures. |
+| Inbound mail forwarding fragile | Cloudflare Email Routing is simple but depends on the team-owned domain's MX records staying correct. Auto-BCC rule on each officer's TAMU Outlook depends on the officer setting it once during onboarding. Mitigation: documented setup, monitoring dashboard for unmatched archive ingest, occasional test message to verify the round-trip works. |
+| Auth issue locks officers out | Magic-link email is the only sign-in path — if Supabase Auth or Resend has an outage, all sign-ins fail. Mitigation: admin can issue a one-time password reset for any user; the build maintainer's account stays valid via Supabase dashboard. |
 | Form spam | Turnstile + honeypot + rate limit. |
 | Photo/video rights | Audit during Phase 1 image migration; flag anything not clearly team-owned. |
 | Survey email fatigue | Once/week max, opt-out per member, no per-request blasts. |
@@ -878,59 +1062,69 @@ None of these are likely within the first year+. The plan is **free + $15/yr dom
 
 ## 16. Open questions for the team
 
-Most of the v4 questions are resolved by the v5 clarifications. What's still open:
+What's still open after the v6 round:
 
-1. **Officer point person & admin successor.** Who owns the system on launch day, and who inherits admin if they graduate? Build maintainer holds it until handoff; we need a named president (or designated officer) to receive admin.
-2. **Team communication channel.** GroupMe / iMessage / Discord? Not architectural — but the team needs a place where "I just sent the weekly survey, please respond" lands. Affects the digest copy and the staleness alert wording.
-3. **Bootstrap officer whitelist.** Exact email addresses of the current officer slate (president, PR, lessons, webmaster, etc.) so they sign in immediately without manual approval. Needed at Phase 0 / launch.
-4. **Sending domain.** Do we authenticate Resend on `wranglers.tamu.edu` (TAMU-controlled — may need IT approval for DKIM/SPF/DMARC records) or buy/use a separate team-owned domain (e.g., `aggiewranglers.com` itself, or `mail.aggiewranglers.com`) for sending? The latter is faster; the former feels more official.
-5. **Role aliases.** Confirmed list of sending aliases: `performance@`, `lessons@`, `bookings@`? Or do confirmations come from `president@`? Affects email composer setup and recipient perception.
-6. **Outlook BCC mailbox(es).** A single team `team-archive@` mailbox that receives every BCC, or BCC the specific officer's individual mailbox? Single mailbox is simpler and survives officer turnover.
-7. **Inbound forwarding setup.** Each role alias needs a forwarding rule into the portal — does the team have an Office 365 admin who can set those up, or do we configure forwarding per-mailbox manually with each officer at Phase 4?
-8. **Flywire URL stability.** Same URL every semester (just toggle `active` on session rows) or new URL each semester? Affects officer workflow at Phase 5.
-9. **YouTube channel access for Move Library.** Who administrates the team's private YouTube channel(s)? Officers grant alumni access how — by invitation through the channel UI, or via a managed Google Group? Determines what we tell alumni when they ask "how do I see the videos?"
-10. **Photo/video rights audit.** Anything currently on the Wix site (or in legacy archives) we should NOT republish? Needs a quick review during Phase 1 image migration.
-11. **Brand refresh timing.** Are we ok launching v1 on the placeholder theme, or do we want to delay launch until the brand work lands? (Recommended: launch on placeholder, swap in brand refresh after — it's a config change.)
-12. **Twilio rollout (v1.1).** Once SMS is added later: opt-in default? What events trigger texts (day-of reminder only, or also "RSVP last call" 24h before deadline)?
+1. **Bootstrap officer whitelist.** Exact email addresses of the current officer slate so they get pre-created profiles + setup links at launch. Needed at Phase 0.
+2. **Team comms channel.** GroupMe / iMessage / Discord? Not architectural — but affects digest copy and staleness-alert wording.
+3. **Outlook auto-BCC rules on `*@wranglers.tamu.edu`.** Need to verify these are allowed on TAMU's Exchange tenant. If they are, the CRM archive flow works as designed. If not, fallback is a server-side forwarding rule per role mailbox (slightly noisier).
+4. **Flywire URL stability for public lessons.** Same URL every semester or new each cycle? Affects Phase 5 officer workflow.
+5. **YouTube channel access for Move Library.** Who administrates the team's private channel? How are alumni invited — direct invite or managed Google Group?
+6. **Photo/video rights audit.** Anything from the Wix site we should NOT republish? Brief review during Phase 1 image migration.
+7. **Brand refresh timing.** Launch on the placeholder theme and swap in brand refresh after (recommended), or delay launch until the brand lands?
+8. **Donations handling outside the portal.** The portal captures donation interest on the form and tracks status after the gig, but does NOT process donations. How does the team currently collect donations (cash/check at the event? Venmo? something else)? Affects the post-performance officer prompt copy.
+
+### Things deferred to v1.1+ that need their own input cycle
+- **Social media management approach** (Buffer SaaS vs portal-native AI drafter vs self-hosted).
+- **Online courses / Coaching pricing + SOFC sales flow.**
+- **Twilio SMS opt-in defaults + trigger events.**
+- **Long-Term Goals tab schema** — does the president want freeform markdown or something more structured (OKRs / quarterly goals / etc.)?
 
 ---
 
 ## 17. What "done" looks like
 
 **Public site:**
-- [ ] All legacy URLs respond 200 with content matching or improving on the old site.
+- [ ] All legacy URLs respond 200 with content matching or improving on the old site; `/our-building` 301s to `/`.
 - [ ] Four primary CTAs visible above the fold on mobile.
+- [ ] **Performance request form includes donation interest field.**
 - [ ] `/watch` shows Top Routines, Music Videos (Midland / Randy Rogers / Ella Langley seeded), and Behind the Scenes.
-- [ ] Images migrated from Wix and served from Supabase Storage; "needs rephoto" list handed to social media officer.
+- [ ] Images migrated from Wix and served from Supabase Storage.
 - [ ] Lighthouse: 95+ Performance / 100 Accessibility / 100 Best Practices / 100 SEO on `/`.
 - [ ] Search Console shows no new 404s after 14 days post-launch.
 
 **Public forms:**
-- [ ] All four forms write to DB, resolve/create contacts, fire auto-replies attached to a thread on the contact, and surface in the portal for the right officer.
+- [ ] All four forms write to DB, resolve/create contacts with the matching logic (first+last OR org OR phone OR email), fire auto-replies from the team domain, and surface in the portal for the right role.
 
 **Team portal — auth & access:**
-- [ ] Magic-link, Microsoft Entra, and Google OAuth all work; a user can link multiple providers to one account.
-- [ ] Pending-approval queue works; bootstrap officer whitelist signs in immediately.
+- [ ] Magic-link sign-in works; officer-issued invite links create accounts.
+- [ ] **Permissions matrix is editable** in Settings; defaults ship per §4.2; multiple users can hold the same status.
+- [ ] Bootstrap officer profiles sign in immediately on launch day.
 
 **Team portal — workflows:**
-- [ ] **Contacts tab** shows every contact with full request + email + notes history. New officers can read previous officers' notes.
-- [ ] **Email composer** sends from role aliases via Resend with team Outlook BCC; threads are persisted in Postgres and attached to contacts.
-- [ ] Per-mailbox inbound forwarding rules deliver replies to the portal and they attach to the right thread.
-- [ ] **Performance Management:** review gate works, weekly survey auto-sends Sunday 18:00 CT (configurable + disable-able), per-request overrides including response deadline work, **drive time auto-computed and shown to members in real availability windows**, response window closes with breakdown on dashboard, **manual confirm/decline via in-portal composer produces the only outbound email path**.
-- [ ] **No automatic external emails exist** for confirmation/decline workflows — verified by reading the cron code.
-- [ ] **Lessons Management:** a semester of public sessions can be scheduled in advance and published on a chosen date; private lesson workflow produces templated quote drafts via composer.
-- [ ] Members CRUD with photo uploads; phone field captured; graduation flow auto-creates draft alumni profile.
-- [ ] Site Content tab: officers can update homepage, FAQ, sponsors, videos, tryout cycle, banquet, merch link without code.
-- [ ] Email templates are editable in Settings; default warm + formal variants ship with the system.
+- [ ] **Contacts tab** supports people + organization types; matches incoming requests against any of (first+last name fuzzy, org, phone, email); shows full request + email + notes history; annual reminders surface on relevant dashboards.
+- [ ] **Email archive ingest** (Cloudflare Worker on `archive@aggiewranglers.com` → portal webhook) attaches sent mail to the right contact + thread; the contact profile shows years of correspondence.
+- [ ] **`mailto:` link generator** opens TAMU Outlook with prefilled subject + body for confirmations, declines, follow-ups, and quotes.
+- [ ] **Performance Management:** review gate works; **Wednesday 18:00 CT** weekly combined availability survey (configurable + disable-able); per-request overrides including response deadline work; drive time auto-computed and shown to members in real availability windows; response window closes with breakdown on dashboard; **manual confirm/decline buttons open Outlook drafts via `mailto:`**; **no automatic external emails exist** for confirmation/decline (verified in cron code).
+- [ ] **Editable performance rosters** post-confirmation; affected members notified.
+- [ ] **Donation interest captured on form; donation status trackable post-event** (Received / Declined / No response / Pending).
+- [ ] **Lessons Management:** semester scheduling works; private lesson workflow merged into the Wednesday survey.
+- [ ] Members CRUD with photo uploads; phone field captured; **personal email field on every profile; primary email auto-flips to personal on graduation**; graduation flow auto-creates draft alumni profile.
+- [ ] **Webmaster tab** lets officers update homepage, FAQ, sponsors, videos, profile cards, tryout cycle, banquet, merch link without code; dynamic profile-grid layout auto-expands as profiles are added.
+- [ ] Email templates editable in Settings; default warm + formal variants ship.
 - [ ] Resources tab: constitution PDF + other team files uploadable with visibility controls.
-- [ ] Move Library: at least 5 seed moves published with YouTube links; officers can edit directly.
-- [ ] Alumni directory visible to authenticated members; self-registration flow approves through president (or designate).
+- [ ] Move Library: at least 5 seed moves published with YouTube links.
+- [ ] Alumni directory visible to authenticated members; self-registration approval queue works.
+- [ ] **Meeting Notes** tab works: date, attendees, agenda, decisions, action items with assignees.
+- [ ] **Long-Term Goals** tab works: free-form markdown with revision history.
+- [ ] **Performance Statistics Dashboard:** per-member attendance %, per-performance roster, individual history.
 
 **Calendar & comms:**
-- [ ] In-portal calendar renders confirmed performances, scheduled lessons, tryouts, and ad-hoc events.
-- [ ] Each member can subscribe to their personal iCal feed and see events in Apple/Google/Outlook within one sync cycle.
-- [ ] Weekly digest email goes out Monday 08:00 CT (configurable) with personal upcoming events.
+- [ ] **Google Calendar 2-way sync** with the team's existing calendar: portal writes confirmed performances/lessons/tryouts/recurring events; external edits reflect back via push webhook.
+- [ ] Recurring events (practices, officer meetings) work.
+- [ ] Per-member iCal feed available for filtered subscription.
+- [ ] Weekly digest email goes out Monday 08:00 CT (configurable).
 
 **Operations:**
 - [ ] Daily staleness cron is live and has sent at least one nudge in testing.
 - [ ] Officer handoff Loom videos delivered per role.
+- [ ] **One-time Outlook auto-BCC rule** documented per officer for the CRM archive flow.
