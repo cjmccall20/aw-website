@@ -164,14 +164,11 @@ Each of those markets justifies its own landing page eventually. Wedding couples
 - **Scheduling for live sessions.** Calendly-style booking against instructor availability; integrates with the portal calendar.
 - **Payments.** Stripe — same payment integration that unblocks the courses generally.
 
-**The alumni-revenue angle is potentially game-changing.** Graduating Wranglers can stay on as paid reviewers post-graduation. Implications:
-- Solves the "knowledge graduates with the senior" problem — alumni instructors stay actively connected.
-- Creates a meaningful alumni-engagement / alumni-income stream the team doesn't currently have.
-- Means service capacity grows over time instead of being capped at active-roster size.
-- Gives senior team members a reason to invest in being good reviewers — there's earning potential past graduation.
-- Naturally builds a multi-generational instructor pool. The team's institutional reputation compounds.
-
-This single feature potentially rewires the alumni relationship from "we occasionally see them at banquet" to "they're actively contributing to a revenue-generating service that reflects on the team." Worth taking seriously as a strategic lever.
+**Staffing: current team only; all revenue stays with the team org.** Reviewers are current Wranglers. Alumni are not paid reviewers in this model. This keeps things clean:
+- **No individual compensation.** Revenue is program revenue to the org, not paid labor for the people doing the work. Funds team activities (travel, costumes, equipment, banquet, recruiting, etc.). Removes one whole class of SOFC / tax / employment-status questions.
+- **No payments flowing to non-current-members.** Sidesteps the additional SOFC complexity that would come with compensating people off the active roster.
+- **Service capacity is naturally capped at active-roster size.** That's a feature, not a bug — it prevents over-promising, keeps reviewer quality concentrated in the people who are actively training together, and makes capacity planning a function of the current team's bandwidth rather than a growing instructor pool that needs to be managed.
+- **Only edge case worth naming:** if demand ever runs so far ahead of what the current team can deliver that the cap becomes a real revenue ceiling (unlikely at any plausible scale), revisit then. Default is no.
 
 **Pilot path (before investing in course production):**
 1. Soft-launch coaching alone via the team's social channels — Instagram/TikTok posts inviting wedding couples to try it. Cap at 10-20 reviews in the first month.
@@ -183,11 +180,10 @@ This single feature potentially rewires the alumni relationship from "we occasio
 - *Quality drift across reviewers.* The rubric + senior-review-on-first-N pattern is the mitigation; needs discipline.
 - *Capacity bottleneck if it takes off faster than the instructor pool grows.* Surface "next slot" prominently; cap weekly intake.
 - *Brand risk from a bad review.* A coach saying something tone-deaf about someone's first dance is a recoverable mistake; one that goes viral is not. Senior review of first-N submissions per new reviewer mitigates.
-- *SOFC complexity for paying alumni reviewers.* Same investigation as the courses themselves, but with the additional wrinkle of compensation flowing to non-current-members. Could turn out to be the gating constraint on the alumni-income angle.
 - *Liability around feedback on personal video.* Standard "we may use clips with your permission for marketing" plus a privacy guarantee in the intake. Don't store videos beyond what's needed.
 - *Cannibalizing in-person private lesson revenue locally.* Probably not — different customer segment, different price point — but worth checking once both exist.
 
-**Strategic positioning summary:** the Coaching service is the *defensive* product. The courses are the *scalable* product. The two reinforce each other — courses drive coaching upsells; coaching testimonials drive course sales; alumni reviewers reinforce both. **Worth piloting coaching first** because it's lower production cost, validates demand, and de-risks the course investment.
+**Strategic positioning summary:** the Coaching service is the *defensive* product. The courses are the *scalable* product. They reinforce each other — courses drive coaching upsells, coaching testimonials drive course sales. **Worth piloting coaching first** because it's lower production cost, validates demand, and de-risks the course investment.
 
 ---
 
@@ -274,3 +270,4 @@ So we don't re-debate things that were already considered.
 - **Native mobile app** `[parked]` — portal is a mobile-friendly web app instead. Native gives us nothing the PWA doesn't, costs significantly more to maintain across officer transitions.
 - **Replacing Flywire entirely** `[parked]` — works for the team currently; switch costs > switch benefits until the next natural pricing change. Revisit when Stripe is on the table.
 - **Auto-confirming performance bookings when threshold is met** `[parked]` — considered, pulled. Officer judgment about conflicts, requester history, edge cases matters more than process automation. System surfaces the data; officer makes the call.
+- **Paying alumni as reviewers in the Coaching service** `[parked]` — considered, pulled. Staffing is current-team-only; all revenue stays with the team org rather than being split with individuals. Avoids SOFC complexity around non-current-member compensation, removes tax/employment-status questions entirely, and keeps the model clean: org earns the revenue, revenue funds team activities, current team does the work. Service capacity is naturally capped at active-roster size — a feature, not a bug. Only revisit if demand ever runs so far ahead of current-team capacity that it becomes a real revenue ceiling.
