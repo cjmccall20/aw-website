@@ -12,7 +12,7 @@
 - **No Claude API in the system.** Email drafts are **templates with variable substitution**, not AI generation. Each template (confirmation, decline, auto-reply, survey email, weekly digest, staleness alert) lives as a row in the DB and is editable in the portal's Settings tab. Officers can pick from a small set of tone variants (e.g., "warm casual," "formal") per template. Removes a vendor, drops cost to ~$0 of API spend, makes outbound email behavior fully predictable. (Anyone on the team can still use ChatGPT/Claude *externally* to draft Instagram captions or polish bios — that's a workflow, not a system dependency.)
 - **Drive-time-aware availability surveys** via Google Maps API. Performance request form uses Google Places autocomplete on the address; backend calls Distance Matrix API to compute drive time from the building (8827 Gauge Dr). Each survey item shows the member their *real* time commitment: "7 PM performance in Brenham — 1h 15m drive — you'd need to be free roughly 4:45 PM to 10:45 PM." Officer can override drive time, call time (default 60 min before), and return buffer (default 15 min) per request. Cost: pennies a month.
 - **Database choice still on the table.** The v3 framing ("dropped Airtable") was overly absolute. Either Supabase Postgres OR Airtable works; comparison and recommendation in §3.
-- **Build phases and costs updated** to reflect the simpler email path and added Maps API.
+- **Costs corrected.** Earlier versions padded the costs assuming Vercel Pro and a Supabase paid tier "in case we outgrow." For AW's actual scale (~35 portal users, ~300 emails/month, <100 MB DB), every service stays on its free tier. Real ongoing cost: **~$15/yr for the domain.** Full math in §14.
 
 ### Carryovers from v3 (still the plan)
 
@@ -87,7 +87,7 @@
 4. **Visually polished, on-brand** (Aggie maroon + white, modern typography, real photos, video-first).
 5. **Email automation** for every outbound team email: auto-replies are sent; confirmations and declines are *drafted* into officer Gmail for review.
 6. **Google Calendar integration** with weekly per-member digest of upcoming commitments.
-7. **Cheap to run** ($0–$30/mo) and durable across officer transitions.
+7. **Free to run** (just the ~$15/yr domain renewal — every other service stays on free tier for AW's volume; see §14) and durable across officer transitions.
 8. **AI-assisted content + email drafting** so non-writers can paste rough notes and get publish-ready output.
 
 ### Non-goals
@@ -162,7 +162,7 @@
 | Email — officer drafts | **Gmail API** | Inserts **templated** confirmation/decline drafts into officer mailboxes for human review. No AI in the loop. |
 | Calendar | **Google Calendar API** | Shared "Aggie Wranglers" calendar + per-member iCal feeds. |
 | Maps / drive time | **Google Maps Platform** (Places + Distance Matrix) | Address autocomplete on the performance form; compute real drive time from the building to the venue. |
-| Background jobs | **Vercel Cron** + Upstash QStash for delayed | Weekly surveys, digests, staleness checks. |
+| Background jobs | **Vercel Cron** (consolidated daily entry point) or **Upstash QStash** | One daily cron that branches by weekday handles weekly survey, weekly digest, and daily staleness checks — fits Hobby tier's 2-cron limit. QStash is a free fallback if we want more granular scheduling. |
 | Analytics | **Vercel Web Analytics** (or Plausible $9/mo) | Privacy-friendly. |
 | Domain | `aggiewranglers.com` apex + `team.aggiewranglers.com` subdomain | Both point to the same Vercel project; middleware routes by host. |
 
@@ -666,20 +666,42 @@ Now ~6–8 weeks of focused work. Each phase is shippable on its own; deliver va
 
 ## 14. Costs
 
-| Service | Tier | Monthly |
-|---|---|---|
-| Vercel | Pro (likely needed for the portal + cron + functions) | $20 |
-| Supabase | Free tier (500 MB DB, 1 GB storage, 50K MAU) — pay $25 if we outgrow | $0–$25 |
-| Upstash Redis | Free tier | $0 |
-| Resend | Free 3k/mo, $20 for 50k | $0–$20 |
-| Gmail API | Free | $0 |
-| Google Calendar API | Free | $0 |
-| Google Maps Platform (Places + Distance Matrix) | Pay-as-you-go; cached results | <$1 |
-| Cloudflare Turnstile | Free | $0 |
-| Domain renewal | Existing | ~$1 |
-| **Total ongoing** | | **~$22–$67/mo** |
+For AW's actual scale, **everything except the domain runs free**.
 
-Realistic baseline: **~$22/mo**. Worst case at scale: ~$67/mo. Most of that is Vercel Pro; everything else stays free for AW's volume.
+Rough usage we're sizing for:
+- ~500–2,000 public site visitors/month
+- ~35 active portal users (members + officers + occasional alumni logins)
+- ~20–50 form submissions/month
+- ~300 outbound emails/month (surveys + digests + auto-replies)
+- <100 MB DB + ~200 MB file storage (mostly member headshots)
+
+| Service | Free tier limit | What we'll use | Cost |
+|---|---|---|---|
+| Vercel Hobby | 100 GB bandwidth, 100 GB-hr compute, 1M edge req/mo, 2 cron schedules | <5% of any of these | $0 |
+| Supabase Free | 500 MB DB, 1 GB storage, 50K MAU, Auth + RLS included | <20% on every axis | $0 |
+| Upstash Redis | 10K commands/day, 256 MB | <1K commands/day | $0 |
+| Upstash QStash (for cron flexibility if needed) | 500 messages/day | <50/day | $0 |
+| Resend Free | 3,000 emails/mo, 100/day | ~300/mo, ~40 peak/day | $0 |
+| Gmail API, Google Calendar API | Free with generous quotas | Well under quota | $0 |
+| Google Maps Platform | $200/mo free credit via Google Cloud | <$1 of usage | $0 |
+| Cloudflare Turnstile | Free, unlimited | — | $0 |
+| Domain renewal | — | ~$15/yr | ~$1.25/mo |
+| **Total ongoing** | | | **~$1.25/mo** |
+
+### Two gotchas worth naming
+
+1. **Vercel Hobby is "non-commercial."** Student orgs that charge for lessons sit in a gray area; in practice Vercel doesn't enforce against legitimate club / non-profit use, but if they ever do, the upgrade is Pro at $20/mo.
+2. **Vercel Hobby cron is limited** to 2 schedules at most daily. Two ways to stay on Hobby:
+   - Consolidate into a single daily cron that branches on `weekday` inside the function (handles weekly survey, weekly digest, and daily staleness checks all from one entry point).
+   - Use Upstash QStash as an external scheduler for any cadence — free tier covers our needs.
+
+### Where this could become non-free later
+
+- Supabase project pauses after 1 week of total inactivity on Free; trivially solved by any real traffic, but worth a uptime ping if we go quiet.
+- Member photos and uploaded resources blow past Supabase's 1 GB storage if the team uploads HD videos directly instead of using YouTube unlisted links. We default to unlisted YouTube for move videos for exactly this reason.
+- If Resend's daily 100-email cap ever bites (e.g., we send to a much larger alumni list one day), it's $20/mo for 50K monthly.
+
+None of these are likely within the first year+. The plan is **free + $15/yr domain**.
 
 ---
 
