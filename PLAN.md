@@ -1,8 +1,19 @@
 # Aggie Wranglers Website Redesign Plan
 
-> Replatform aggiewranglers.com off Wix into a modern, low-maintenance, conversion-focused site backed by **Airtable** as the CMS so the team can keep content current — and automate the operational workflows (performance bookings, private lesson requests, team availability polling) that today eat hours of officer time every week.
+> Replatform aggiewranglers.com off Wix into a unified system with two surfaces:
+> a polished public site at **aggiewranglers.com** and an authenticated team portal at **team.aggiewranglers.com** that doubles as the CRUD app, ops console, and source of truth for everything the public site shows.
 
-**Stack at a glance:** Astro on **Vercel** · **Airtable** for content and ops · Vercel Functions for forms, automation, and webhooks · Resend + Gmail API for outbound email.
+**Stack at a glance:** Next.js on **Vercel** · **Postgres** (Neon) as source of truth · NextAuth with Google OAuth (TAMU-domain restricted) for the portal · Role-based access control · Resend + Gmail API for outbound email · Google Calendar API for team scheduling.
+
+---
+
+## 0. TL;DR — what changed in v3
+
+- **Dropped Airtable.** The team portal is now a custom app, so Airtable's "lite CRUD UI" value goes away. Postgres becomes the single source of truth; the portal is the CMS, ops console, and surveys tool; the public site is a thin read-only view over the same DB.
+- **Added `team.aggiewranglers.com`** — authenticated portal with role-based tabs: Performance Management, Lessons Management, Members, Site Content, Calendar, Constitution, Alumni Directory, Settings.
+- **Added Google Calendar integration** — confirmed performances and scheduled lessons populate the team calendar; each event lists the team members assigned; members get a weekly Monday digest of where they're expected.
+- **Added scheduled-publish for public content** — officers can schedule a full semester of lessons in advance, hidden from the public site, then publish on a date or via toggle.
+- **Trade-off, explicit:** this is significantly more to build (~6–8 weeks instead of ~4) and more to maintain across officer turnover. The payoff is one coherent system instead of three half-integrated SaaS tools, and the team's day-to-day work happens inside an interface they control.
 
 ---
 
@@ -40,15 +51,12 @@
 
 **Problems observed:**
 
-- Public lessons page still shows Spring 2 schedule with stale 2/15–3/4 dates (no year visible) — classic staleness symptom
-- `/requirements` (Tryouts) page references an "Important Dates" link but no actual dates are listed
-- `/private-lessons` returns a "Blank" page in Google's index — placeholder content from launch never filled in
-- Performance request flow buried behind a tutorial video
-- No first-class YouTube presence even though the team's video content is one of their biggest assets — including major music-video features (Midland *"Burnout,"* Randy Rogers Band *"I'll Never Get Over You,"* Ella Langley *"Choosin' Texas"*)
-
-### Why the team can't keep it current today
-
-Wix's editor requires logging into a shared account, navigating a WYSIWYG, and remembering where each field lives. There's no one designated for it, so it rots. The fix is **not** to find a more committed maintainer — it's to make updates take 30 seconds in a tool that feels familiar (a spreadsheet-style grid with photo drag-and-drop).
+- Public lessons page still shows Spring 2 schedule with stale 2/15–3/4 dates — staleness symptom.
+- `/requirements` (Tryouts) references an "Important Dates" link but no actual dates listed.
+- `/private-lessons` returns a "Blank" page — placeholder never filled in.
+- Performance request flow buried behind a tutorial video.
+- No first-class YouTube presence even though the team's video work — Midland *"Burnout,"* Randy Rogers Band *"I'll Never Get Over You,"* Ella Langley *"Choosin' Texas"* — is huge.
+- **No system for operational coordination.** Performance availability, lesson scheduling, who's-where-this-week all happen in GroupMe and individual heads.
 
 ---
 
@@ -56,120 +64,194 @@ Wix's editor requires logging into a shared account, navigating a WYSIWYG, and r
 
 ### Goals
 
-1. **Four conversion paths**, prioritized in this order:
+1. **Public site** with four conversion paths, ordered by importance:
    1. Sign up for **public lessons**
    2. Get current info & get hyped about **tryouts**
    3. Request a **performance**
    4. Request a **private lesson**
-2. **Spreadsheet-easy content management** for everything that changes more than once a year (lesson schedule, tryout dates, roster + member photos, YouTube playlist, sponsors, FAQ, announcements).
-3. **Automate the team's operational workflows** that the website touches:
-   - Performance request → team availability poll → confirm-or-decline draft email
-   - Private lesson request → assign instructor → confirmation draft email
-   - General inquiry → instant templated auto-reply
-4. **Preserve every existing URL** so SEO equity transfers.
-5. **Visually polished, on-brand** (Aggie maroon + white, modern typography, real photos, video-first).
-6. **Cheap to run** ($0–$25/mo) and easy to hand off to future officer slates.
-7. **AI-assisted content + email drafting** so officers paste rough notes and get publish-ready output.
+2. **Team portal** that handles the team's actual operational life:
+   - Manage performance requests end-to-end (intake → review → batched availability survey → confirmation/decline drafts).
+   - Manage lesson scheduling (public sessions for the semester, private lesson requests, instructor assignments).
+   - Maintain member roster (current, alumni, tryout pipeline) with photos.
+   - Manage site content (everything the public site shows).
+   - View team calendar; auto-sync to Google Calendar.
+   - Provide member-facing resources (constitution, alumni directory).
+3. **Preserve every existing URL** so SEO equity transfers.
+4. **Visually polished, on-brand** (Aggie maroon + white, modern typography, real photos, video-first).
+5. **Email automation** for every outbound team email: auto-replies are sent; confirmations and declines are *drafted* into officer Gmail for review.
+6. **Google Calendar integration** with weekly per-member digest of upcoming commitments.
+7. **Cheap to run** ($0–$30/mo) and durable across officer transitions.
+8. **AI-assisted content + email drafting** so non-writers can paste rough notes and get publish-ready output.
 
-### Non-goals (intentionally out of scope)
+### Non-goals
 
-- Member portal / login (still email + Google Drive for internal stuff)
-- Native app
-- E-commerce (merch can keep pointing to existing store)
-- Replacing Flywire lesson signup or the current payment processor
-- Migrating banquet RSVP infra (low-volume, can stay as-is)
-- Sending outbound emails *without* officer review — every external-facing email is drafted, not auto-sent
+- Native app (the portal is a mobile-friendly PWA).
+- E-commerce / merch fulfillment (keep pointing to external store).
+- Replacing Flywire for public lesson payments.
+- Migrating banquet RSVP infra unless the team wants it.
+- Auto-sending external emails. Every outbound email to a non-member goes via a *drafted* Gmail message reviewed by an officer.
+- Doing anything the team can't take over within an officer transition cycle.
 
 ---
 
 ## 3. Recommended architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  Airtable workspace "Aggie Wranglers"                            │
-│  ┌────────────────────────┐  ┌────────────────────────────────┐ │
-│  │ Base: Website CMS      │  │ Base: Operations               │ │
-│  │  - members             │  │  - performance_requests        │ │
-│  │  - public_lessons      │  │  - private_lesson_requests     │ │
-│  │  - tryouts             │  │  - general_inquiries           │ │
-│  │  - videos              │  │  - availability_polls          │ │
-│  │  - sponsors            │  │  - availability_responses      │ │
-│  │  - faq                 │  │  - email_drafts                │ │
-│  │  - announcements       │  │                                │ │
-│  │  - site_settings       │  │                                │ │
-│  └────────────────────────┘  └────────────────────────────────┘ │
-│  Edited by: officers (Airtable web + mobile, photos drag/drop)   │
-└────────────────┬─────────────────────────────────────────────────┘
-                 │  Airtable webhooks on record change
-                 ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  Astro site on Vercel (aggiewranglers.com)                       │
-│                                                                  │
-│  Pages (ISR, revalidate on Airtable webhook):                    │
-│   /, /public-lessons, /private-lessons, /requirements,           │
-│   /performance-request, /private-lesson-request, /watch, ...     │
-│                                                                  │
-│  API routes (Vercel Functions):                                  │
-│   POST /api/forms/performance-request                            │
-│   POST /api/forms/private-lesson-request                         │
-│   POST /api/forms/general-contact                                │
-│   POST /api/availability/start         (officer triggers poll)   │
-│   POST /api/availability/respond       (member RSVPs)            │
-│   POST /api/availability/finalize      (compute & draft email)   │
-│   POST /api/webhooks/airtable          (revalidate ISR pages)    │
-│   GET  /api/cron/staleness-check       (daily, see §7)           │
-│                                                                  │
-│  Storage: Vercel KV for rate limiting + cache; Airtable for data │
-└────────────────┬─────────────────────────────────────────────────┘
-                 │
-                 ▼
-┌──────────────────────────────────────────────────────────────────┐
-│  Email layer                                                     │
-│   - Resend: instant transactional (auto-replies, RSVP links)     │
-│   - Gmail API: creates DRAFTS in officer mailboxes for human     │
-│     review before sending external confirmations / declines      │
-└──────────────────────────────────────────────────────────────────┘
+                            ┌──────────────────────────┐
+                            │  Postgres (Neon)         │
+                            │  Single source of truth  │
+                            └──────────┬───────────────┘
+                                       │
+                ┌──────────────────────┼──────────────────────┐
+                │                                             │
+                ▼                                             ▼
+   ┌────────────────────────────┐         ┌────────────────────────────────┐
+   │  aggiewranglers.com        │         │  team.aggiewranglers.com       │
+   │  PUBLIC SITE               │         │  TEAM PORTAL (auth required)   │
+   │  ──────────────────────    │         │  ──────────────────────────    │
+   │  Static + ISR pages        │         │  Next.js App Router            │
+   │  - / home (4 CTAs)         │         │  - Dashboard                   │
+   │  - /public-lessons         │         │  - Performance management      │
+   │  - /private-lessons        │         │  - Lessons management          │
+   │  - /performance-request    │         │  - Members & roster            │
+   │  - /private-lesson-request │         │  - Site content (CMS)          │
+   │  - /requirements (tryouts) │         │  - Team calendar               │
+   │  - /meet-the-team          │         │  - Constitution                │
+   │  - /watch (videos)         │         │  - Alumni directory            │
+   │  - + every legacy URL      │         │  - Surveys                     │
+   │                            │         │  - Settings                    │
+   │  Forms POST to /api/forms  │         │                                │
+   │  Read from DB (revalidate  │         │  Auth: NextAuth + Google OAuth │
+   │    via webhook on write)   │         │    restricted to @tamu.edu     │
+   └────────────────────────────┘         │  RBAC: roles[] on user record  │
+                                          └──────────────┬─────────────────┘
+                                                         │
+        ┌────────────────────────────────────────────────┼─────────────────────────────┐
+        │                          │                     │                  │           │
+        ▼                          ▼                     ▼                  ▼           ▼
+ ┌──────────────┐         ┌────────────────┐    ┌────────────────┐  ┌────────────┐ ┌────────────┐
+ │ Resend       │         │ Gmail API      │    │ Google Cal API │  │ Vercel     │ │ Vercel     │
+ │ (auto-reply, │         │ (drafts into   │    │ (team calendar │  │ Cron       │ │ Blob       │
+ │  RSVP links, │         │  officer inbox │    │  events + per- │  │ (weekly    │ │ (photos,   │
+ │  digests)    │         │  for review)   │    │  member feed)  │  │  surveys,  │ │  logos,    │
+ │              │         │                │    │                │  │  digests,  │ │  PDFs)     │
+ │              │         │                │    │                │  │  staleness)│ │            │
+ └──────────────┘         └────────────────┘    └────────────────┘  └────────────┘ └────────────┘
 ```
 
-### Why this stack (and the changes from v1)
+### Why this stack
 
-| Concern | Choice | Reason / what changed |
+| Concern | Choice | Reason |
 |---|---|---|
-| Hosting | **Vercel** | Per your call. Native Astro/Next support, ISR + on-demand revalidation, easy serverless functions, generous Hobby tier. |
-| Framework | **Astro** | Content-heavy, mostly static, ships ~0 JS by default. Could swap to Next if we want React for the officer-facing dashboards — but Astro pages can mount React islands where needed, so we get both. |
-| Styling | **Tailwind CSS** | Fastest way to enforce the Aggie design system consistently. |
-| **CMS** | **Airtable** (changed from Google Sheets) | See decision matrix below. |
-| Caching / KV | **Vercel KV** (Upstash) | Rate limiting + dedup of webhook events; Airtable is the source of truth. |
-| Forms | **Vercel Functions → Airtable + Resend** | Forms write a row to Airtable Operations base AND fire instant auto-reply via Resend. |
-| Confirmation emails | **Gmail API drafts** | Drafts land in the officer's Gmail Drafts folder, prefilled with details from the request — they review and hit send. No risk of the bot speaking on behalf of the team. |
-| Spam | **Cloudflare Turnstile** (free even off-Cloudflare) | Invisible captcha on each public form. |
-| Analytics | **Vercel Web Analytics** | Free privacy-friendly tier; or swap Plausible for $9/mo if we want more. |
-| Domain | Keep `aggiewranglers.com` | Update DNS to Vercel; preserve TAMU subdomain reference if used elsewhere. |
+| Framework | **Next.js 15 (App Router)** | One app, two domains via middleware. Public pages render static/ISR; portal pages render dynamically with auth. Future maintainers (likely students) only learn one stack. |
+| Hosting | **Vercel** | Per request. Hobby tier is borderline-sufficient for one of these projects — we'll likely need Pro ($20/mo) once we have the portal + cron + functions. |
+| Database | **Neon Postgres** (or Supabase if we want their auth/storage too) | Cheap, generous free tier, branching for preview deploys, serverless-friendly. |
+| ORM | **Drizzle** (or Prisma) | Drizzle is leaner for serverless; Prisma is more familiar. Either is fine. |
+| Auth | **NextAuth.js (Auth.js)** + Google OAuth | Domain-restrict to `@tamu.edu`; first-login = pending approval; president approves and assigns roles. |
+| RBAC | **roles[] on user** + route middleware | Simple, transparent, easy to audit. |
+| UI | **shadcn/ui + Tailwind** | Lifts the portal from "Bootstrap admin panel" to "professional product" with little effort. |
+| File storage | **Vercel Blob** | Headshots, sponsor logos, constitution PDF. No separate S3 setup. |
+| Cache / KV | **Upstash Redis** via Vercel KV | Rate limits, survey response idempotency, session sidecar. |
+| Email — transactional | **Resend** | Auto-replies, survey emails, weekly digests. |
+| Email — officer drafts | **Gmail API** | Insert drafts into officer mailboxes for human review. |
+| Calendar | **Google Calendar API** | Shared "Aggie Wranglers" calendar + per-member iCal feeds. |
+| Background jobs | **Vercel Cron** + Upstash QStash for delayed | Weekly surveys, digests, staleness checks. |
+| Analytics | **Vercel Web Analytics** (or Plausible $9/mo) | Privacy-friendly. |
+| Domain | `aggiewranglers.com` apex + `team.aggiewranglers.com` subdomain | Both point to the same Vercel project; middleware routes by host. |
 
-### CMS decision: Airtable vs Google Sheets vs Notion
+### Why drop Airtable
 
-You asked whether Sheets/Drive is the right call. I think no — **Airtable is the better fit** specifically because of images and ops workflows.
+Airtable was attractive as "lite CRUD UI for the team," but once we're building a real portal with role-based tabs and custom workflows, that value goes away. A second SaaS to learn and pay for, with a worse permissions model than what we can build, isn't worth it. The portal we build *is* the CRUD app.
 
-| | Google Sheets + Drive | Airtable | Notion |
-|---|---|---|---|
-| Spreadsheet-like familiarity | ✅ Best | ✅ Very close | ❌ Doc-like |
-| Images / member headshots | ❌ URL strings → Drive | ✅ **Native attachment field, drag & drop** | ✅ Inline |
-| Mobile editing UX | 😐 Awkward | ✅ Purpose-built mobile app | ✅ Good |
-| Structured fields (dates, links, dropdowns) | 😐 Free-text, easy to break | ✅ Typed fields, validation | ✅ Typed fields |
-| Built-in forms (for internal availability polls) | ❌ Google Forms is separate | ✅ One click | 😐 Limited |
-| Built-in automations (email on new row, etc.) | 😐 Apps Script | ✅ No-code automations | ❌ Needs API |
-| Views (Calendar for events, Kanban for requests) | ❌ | ✅ | ✅ |
-| Free tier covers AW volume? | ✅ Yes | ✅ Yes (1,000 records/base, 1GB attachments) | ✅ Yes |
-| Cost if we outgrow it | $0 | $20/seat/mo | $10/seat/mo |
-| Risk if vendor changes pricing | None | Some | Some |
-
-**Recommendation: Airtable**, with one mitigation — we keep a nightly export of all bases to a Google Drive folder owned by the team's `wranglers.tamu.edu` group, so we can fall back to Sheets in days if needed. Airtable's free plan (1,000 records per base) is plenty for this team's needs (~30 members, dozens of videos, dozens of sponsors, ~50 active form submissions/yr). Headshots and partner photos drop straight into attachment fields with no Drive juggling.
-
-If you have a strong preference for Sheets despite the above (e.g., team is uneasy about a new SaaS), the architecture still works — we'd just lose the native image fields and have to recreate the no-code automations as Apps Script triggers. Worth ~3–5 extra days of build time.
+What we lose: Airtable's no-code automations, mobile app, and "I can edit a row in 5 seconds" UX. We get all of those back via well-built portal screens — and the portal can do things Airtable can't (workflow approvals, calendar sync, weekly digests, etc.).
 
 ---
 
-## 4. Information architecture
+## 4. The team portal (`team.aggiewranglers.com`)
+
+The portal is structured as nine tabs, each with role-gated access. Anyone signed in sees a personalized Dashboard; everything else depends on roles.
+
+### 4.1 Tabs & features
+
+**1. Dashboard** *(all roles)*
+- "Where you're expected this week" — next 7 days of personal calendar.
+- Open surveys to respond to.
+- Action items for your role (e.g., PR officer: "3 requests waiting for your review").
+- System banners (staleness alerts targeted to relevant officer).
+
+**2. Performance Management** *(PR Officer, President, Member view-only)*
+- Inbox: all `performance_requests` with status filters.
+- Per-request detail page: review notes, urgency, poll history, draft history.
+- Buttons: Approve to Poll, Decline, Send survey now, Add to next weekly survey, Draft confirmation, Draft decline.
+- Settings: weekly survey day/time, default polling window, default min couples.
+
+**3. Lessons Management** *(Lessons Officer, President)*
+- **Public sessions**: schedule a semester of sessions at once. Each session has `visible_to_public` toggle (default OFF) and optional `publish_at` date. Officer can plan ahead, then flip on (or auto-publish) when ready.
+- **Private lesson requests**: same shape as Performance Management (review gate → optional survey → assign instructors → draft confirmation).
+- **Instructor pool**: which members are eligible to teach which class types.
+
+**4. Members** *(President, Webmaster; Members view-only)*
+- CRUD on member records (name, role, class year, hometown, major, headshot, partner photo, partner link, bio, status).
+- Drag-drop photos directly (no Drive juggling).
+- Officer transitions: bulk role updates at year-end.
+- Approval queue for new logins (TAMU email present but not yet on team).
+
+**5. Site Content** *(Webmaster, President)*
+- Edit homepage announcement, site-wide tagline, contact info.
+- Manage `/watch` videos: reorder, set category (Top Routines / Music Videos / BTS & Press), toggle `featured`.
+- Manage sponsors: add/edit/order, upload logos.
+- Manage FAQ: add/edit/order.
+- Manage tryout cycle: dates, eligibility, signup URL, `active` toggle.
+- **Preview button**: opens public site in a new tab with draft content via cookie.
+
+**6. Team Calendar** *(all roles)*
+- Embedded view of the shared Google Calendar.
+- Member-specific "my events" filter.
+- Personal iCal feed URL (one-click copy).
+
+**7. Constitution** *(all members + alumni)*
+- View current constitution (markdown rendered, or PDF embed — pick one in §16).
+- Version history.
+- Officers can propose amendments; president approves to publish a new version.
+
+**8. Alumni Directory** *(members + alumni)*
+- Searchable by graduation year, hometown, current city.
+- Each alumnus controls their own opt-in/opt-out and contact-permissions.
+- Self-service registration with email verification.
+
+**9. Settings** *(President, scoped subsets for other officers)*
+- Global ops settings: `auto_send_weekly_survey`, `weekly_survey_day`, `weekly_survey_time`, `default_polling_window_days`, `default_min_couples_required`, `default_response_deadline_days`.
+- Email "from" / signature config per officer role.
+- Calendar integration (which Google Calendar to write to).
+- Webhook secrets, API keys (admin only).
+
+### 4.2 Roles & RBAC
+
+| Role | Granted to | Can read | Can write |
+|---|---|---|---|
+| `admin` | Build maintainer (you/me, then handed to president) | All | All, including settings & user roles |
+| `president` | Current president | All | All except admin-only settings |
+| `officer:performance` | PR officer | Members, performances, calendar, site content | Performance management, surveys |
+| `officer:lessons` | Lessons officer | Members, lessons, calendar, site content | Lessons management, surveys |
+| `officer:webmaster` | Webmaster / social media officer | Members, site content, videos, FAQ | Site content tab |
+| `member` | Current team member | Their assignments, calendar, constitution, alumni | RSVP to surveys, edit own bio + photos |
+| `alumni` | Verified alumni | Constitution, alumni directory | Edit their own alumni profile |
+
+A user can hold multiple roles (president is usually also an officer of something). Role checks live in Next.js middleware and in API routes; UI hides tabs the user can't access.
+
+### 4.3 Login flow
+
+1. User clicks "Sign in" on `team.aggiewranglers.com`.
+2. NextAuth Google OAuth, restricted to `@tamu.edu` at first (configurable).
+3. First login: user record created with role `member` and `status = pending_approval`. They land on a "waiting for officer approval" page.
+4. President sees a notification on their dashboard, opens Members → Approval queue, grants roles (or rejects with a reason).
+5. Alumni use a separate registration path that requires graduation year and a verification step (officer confirms or matches against the members table).
+
+Bootstrap: at launch, we whitelist the current officer slate by email so they can log in immediately without manual approval.
+
+---
+
+## 5. Information architecture — public site
 
 Top nav (matches today's structure to preserve SEO and muscle memory):
 
@@ -187,513 +269,397 @@ Home  |  Lessons ▾  |  Performances ▾  |  Tryouts  |  About ▾  |  Watch
                                                  Merchandise
 ```
 
-**`/watch` (new) — the team's videos as a real funnel.**
-
-Three subsections, all reorderable from Airtable's `videos` table via the `category` and `display_order` fields:
+**`/watch` (new) — videos as a real funnel.** Three subsections, reorderable from the portal:
 
 1. **Top Routines** — fan-favorite live performances.
-2. **Music Videos We've Been In** — featured artist appearances. Seeded with:
+2. **Music Videos We've Been In** — seeded with:
    - Midland — *Burnout*
    - Randy Rogers Band — *I'll Never Get Over You*
    - Ella Langley — *Choosin' Texas*
-3. **Behind the Scenes / Press** — practice clips, news features (KBTX, Maroon Magazine), Yell Leaders crossover, etc.
+3. **Behind the Scenes / Press** — practice clips, news features, Yell Leaders crossover.
 
-Each video card has a "Want to dance like this? → Public Lessons" CTA underneath, closing the loop from "saw a cool video" to "signed up for a class."
+Each video card has a "Want to dance like this? → Public Lessons" CTA.
 
-**Homepage layout** (above the fold, mobile-first):
+**Homepage layout** (mobile-first):
 
 1. Hero image/video loop + tagline.
-2. **Four CTAs** in a 2×2 mobile / 4-across desktop grid, weighted by visual prominence:
-   - **Sign up for Lessons** (largest)
-   - **Tryouts** (state-aware: "Tryouts open!" badge when active)
-   - **Request a Performance**
-   - **Request a Private Lesson**
-3. Next public-lesson session card (pulled live from Airtable — "Next class: Wed Feb 18, 5:30 PM at our building").
-4. Featured video (top of `videos` table where `featured = TRUE`).
-5. Quick proof: recent performances / press (Ella Langley music video, KBTX feature).
+2. **Four CTAs** in a 2×2 mobile / 4-across desktop grid:
+   - Sign up for Lessons (largest)
+   - Tryouts (state-aware "Tryouts open!" badge when active)
+   - Request a Performance
+   - Request a Private Lesson
+3. Next public-lesson session card (live from DB).
+4. Featured video (top of videos where `featured = TRUE`).
+5. Quick proof: recent performances / press.
 6. Social strip + email signup.
 
 ---
 
-## 5. Airtable schema
+## 6. Database schema (Postgres)
 
-Two bases, separating "what the public sees" from "what officers operate on."
+Grouped by domain. All tables have `id`, `created_at`, `updated_at`.
 
-### Base 1: **Website CMS**
+### 6.1 Identity & access
 
-**`site_settings`** (single record)
-- contact_email, address, tagline, mission_statement, instagram_url, tiktok_url, youtube_channel_url, facebook_url, x_url, tryouts_open (toggle), lessons_open (toggle), homepage_announcement
-- **auto_send_weekly_survey** (toggle, default ON)
-- **weekly_survey_day** (single-select Sun–Sat, default Sunday)
-- **weekly_survey_time** (time, default 6:00 PM CT)
-- **default_polling_window_days** (number, default 30) — how far into the future event_date can be and still be eligible for the survey
-- **default_min_couples_required** (number, default 4) — applied to new performance requests as a starting threshold
-- **default_response_deadline_days** (number, default 5) — how long members have to respond after a survey goes out
+- **users**: `email` (unique), `google_sub`, `name`, `avatar_url`, `roles[]` (text[]), `status` (`pending_approval` / `active` / `disabled`), `member_id` (FK → members, nullable for non-member logins)
+- **sessions / accounts**: managed by NextAuth tables.
+- **audit_log**: who did what when (RBAC-sensitive actions only).
 
-**`public_lessons`** (one row per class session)
-- class_name, level (single-select: CW1/CW2/Jitt1/Jitt2), day, start_time, end_time, dates (multiple dates), instructors (link → members), signup_url (Flywire), active (toggle), notes
+### 6.2 Site content
 
-**`tryouts`** (one row per cycle)
-- cycle_name (e.g., "Spring 2027"), prep_lesson_dates, tryout_date, eligibility_notes, signup_url, active
+- **site_settings** (single row): tagline, mission, contact_email, address, socials, `tryouts_open`, `lessons_open`, `homepage_announcement`, `auto_send_weekly_survey`, `weekly_survey_day`, `weekly_survey_time`, `default_polling_window_days`, `default_min_couples_required`, `default_response_deadline_days`, `weekly_digest_day`, `weekly_digest_time`.
+- **public_lessons**: `class_name`, `level`, `day`, `start_time`, `end_time`, `dates[]`, `instructor_ids[]`, `signup_url`, `visible_to_public`, `publish_at` (nullable), `active`, `notes`.
+- **tryouts**: `cycle_name`, `prep_lesson_dates[]`, `tryout_date`, `eligibility_notes`, `signup_url`, `active`.
+- **members**: `name`, `role_title` (display), `class_year`, `hometown`, `major`, `headshot_url`, `partner_photo_url`, `partner_id` (FK self), `bio`, `display_order`, `status` (`current` / `alumni` / `tryout` / `inactive`), `email`, `phone` (private).
+- **videos**: `youtube_id`, `title_override`, `display_order`, `category` (enum), `featured`, `source_artist` (for music videos).
+- **sponsors**: `name`, `tier`, `logo_url`, `website_url`, `display_order`, `active`.
+- **faq**: `question`, `answer` (markdown), `category`, `display_order`.
+- **announcements**: `headline`, `body`, `link_url`, `start_date`, `end_date`, `active`.
 
-**`members`** (current team + pipeline)
-- name, role (single-select: President, VP, Performance Officer, Lessons Officer, Captain, Member, ...), class_year, hometown, major, **headshot** (attachment), **partner_photo** (attachment), partner (link → members), bio, display_order, status (single-select: Current, Alumni, Tryout)
+### 6.3 Operations
 
-**`videos`**
-- video_id (YouTube ID), title_override (optional), display_order, **category** (single-select: Top Routines, Music Videos, Behind the Scenes & Press), featured (toggle for homepage), source_artist (text — for music videos)
+- **performance_requests**:
+  - intake: `requester_name`, `requester_email`, `requester_phone`, `organization`, `event_date`, `event_time`, `location`, `audience_size`, `performance_type`, `notes`, `urgency` (enum), `needs_answer_by`
+  - workflow: `status` (`new` → `under_review` → `ready_to_poll` → `polling` → `threshold_met` / `threshold_not_met` → `confirmed` / `declined` → `completed`), `assigned_officer_id`, `review_notes`, `polling_window_days`, `min_couples_required`, `response_deadline`, `include_in_next_survey`
+  - outcome: `confirmation_sent_at`, `gcal_event_id`
+- **private_lesson_requests**: same shape, minus `audience_size`, plus `group_size`, `dance_type`, `experience_level`, `preferred_dates`, `price_quoted`, `assigned_instructor_ids[]`.
+- **general_inquiries**: intake fields, `auto_reply_sent_at`, `needs_human`, `assigned_to_id`.
+- **survey_runs**: `run_at`, `run_type` (`weekly_auto` / `manual`), `triggered_by_id`, `performance_request_ids[]`, `private_lesson_request_ids[]`, `member_count`, `response_count`, `response_deadline`, `notes`.
+- **survey_responses**: `survey_run_id`, `member_id`, `target_type` (`performance` / `private_lesson`), `target_id`, `available` (`yes` / `no` / `maybe`), `notes`, `responded_at`. Unique on (survey_run_id, member_id, target_type, target_id).
+- **email_drafts**: `created_at`, `draft_type`, `related_type`, `related_id`, `assigned_officer_id`, `gmail_draft_id`, `prefilled_subject`, `prefilled_body`, `sent_at`.
 
-**`sponsors`**
-- name, tier (single-select: Title, Gold, Silver, Partner), **logo** (attachment), website_url, display_order, active
+### 6.4 Member-facing
 
-**`faq`**
-- question, answer (long text, markdown), category (single-select), display_order
-
-**`announcements`**
-- headline, body, link_url, start_date, end_date, active
-
-### Base 2: **Operations**
-
-**`performance_requests`** — one row per inbound form
-- created_at, requester_name, requester_email, requester_phone, organization, event_date, event_time, location, audience_size, performance_type, notes
-- **urgency** (single-select: *Standard — 2–3 weeks notice is fine* / *Quick answer needed* / *Hard deadline*) — set by the requester on the intake form
-- **needs_answer_by** (date, optional) — only populated when urgency ≠ Standard
-- **status** (single-select: *New* → *Under Review* → *Ready to Poll* → *Polling* → *Threshold Met* / *Threshold Not Met* → *Confirmed* / *Declined* → *Completed*)
-- **polling_window_days** (number, default = `site_settings.default_polling_window_days`) — only included in surveys when `event_date` is within this many days of "now." PR officer can override per-request (e.g., bump to 90 for a high-profile bowl game way out).
-- **include_in_next_survey** (toggle, default ON when status = Ready to Poll) — manual override to skip a specific request in the upcoming survey without changing its status
-- **min_couples_required** (number, default = `site_settings.default_min_couples_required`)
-- **response_deadline** (date — computed when first added to a survey)
-- **assigned_officer** (link → members)
-- **review_notes** (long text — PR officer's internal notes from the review step)
-- **poll** (link → availability_polls)
-
-**`private_lesson_requests`**
-- created_at, requester_name, email, phone, group_size, preferred_dates, dance_type, experience_level, notes
-- **urgency** (single-select: *Standard* / *Quick answer needed* / *Hard deadline*)
-- **needs_answer_by** (date, optional)
-- **status** (single-select: *New* → *Under Review* → *Ready to Poll* → *Polling* → *Assigned* → *Confirmed* / *Declined* → *Completed*)
-- **polling_window_days** (number, default from `site_settings`)
-- **include_in_next_survey** (toggle, default ON when status = Ready to Poll)
-- **response_deadline** (date)
-- **assigned_instructors** (link → members)
-- **price_quoted**
-- **review_notes** (long text)
-
-**`general_inquiries`**
-- created_at, name, email, subject, message, auto_reply_sent (toggle), needs_human (toggle), assigned_to (link → members)
-
-**`availability_polls`** (one per performance request that needs polling)
-- request (link → performance_requests), poll_url_token, deadline, min_couples_required, status (Open / Met / Did Not Meet / Closed)
-
-**`availability_responses`**
-- poll (link → availability_polls), member (link → members), available (single-select: Yes / No / Maybe), notes, responded_at
-
-**`survey_runs`** — one row per weekly batch or ad-hoc send
-- run_at, run_type (single-select: *Weekly auto* / *Manual*), triggered_by (link → members), included_performance_requests (link), included_private_lesson_requests (link), member_count, response_count, response_deadline, notes
-
-**`email_drafts`** (audit trail of what we drafted into Gmail)
-- created_at, draft_type (Confirmation / Decline / Quote / Follow-up), related_request, gmail_draft_id, prefilled_subject, prefilled_body, sent (toggle, updated by Gmail webhook)
-
-The Operations base also gets two **Airtable Interfaces** (no-code dashboards): "Performance Officer Dashboard" and "Lessons Officer Dashboard" — Kanban boards over `performance_requests` and `private_lesson_requests` respectively, so officers don't have to learn the raw tables.
+- **constitution_versions**: `version_number`, `title`, `body_markdown`, `pdf_url` (optional), `published_at`, `published_by_id`, `summary_of_changes`.
+- **alumni_profiles**: `member_id` (FK), `graduation_year`, `current_city`, `current_role`, `what_im_up_to`, `contact_permission` (enum), `verified_at`, `verified_by_id`.
 
 ---
 
-## 6. Forms & lead capture
+## 7. Public forms & lead capture
 
-Four public-facing forms, each a Vercel Function:
+Four public forms. Each Vercel Function writes to Postgres and triggers the auto-reply.
 
 | Form | Fields | What happens |
 |---|---|---|
-| **Performance request** | name, org, event date/time, location, audience size, performance type, notes, **urgency** (radio, default "Standard — 2–3 weeks notice is fine"; "Quick answer needed" reveals a `needs_answer_by` date field) | Writes to `performance_requests` (status=*New*) → templated auto-reply via Resend that reflects the requester's urgency choice → notifies performance officer → enters review queue (§7.1) |
-| **Private lesson request** | name, email, phone, group size, preferred dates, dance type, experience, notes, **urgency** (same as above) | Writes to `private_lesson_requests` (status=*New*) → auto-reply → notifies lessons officer (§7.2) |
-| **General contact** | name, email, subject, message | Writes to `general_inquiries` → fires AI-assisted auto-reply that reflects what the user asked about (§7.3) → flags `needs_human` if AI can't answer |
-| **Newsletter signup** | email | Adds to a simple list (Mailchimp free, or just an Airtable table to start) |
+| **Performance request** | name, org, event date/time, location, audience size, performance type, notes, **urgency** (default "Standard — 2–3 weeks notice is fine") | Inserts `performance_requests` row, status=`new` → Resend auto-reply with urgency-aware copy → PR officer notified in portal |
+| **Private lesson request** | name, email, phone, group size, preferred dates, dance type, experience, notes, **urgency** | Inserts row → auto-reply → lessons officer notified |
+| **General contact** | name, email, subject, message | Inserts `general_inquiries` → templated auto-reply, FAQ-aware if the AI is confident, else generic + `needs_human=TRUE` |
+| **Newsletter signup** | email | Adds to a simple `newsletter_subscribers` table |
 
-Public lessons themselves continue to use Flywire — we just surface the Flywire URLs from Airtable. No payment-flow rebuild.
-
-Spam: Cloudflare Turnstile (free, invisible) + per-IP rate limit in Vercel KV.
+Spam: Cloudflare Turnstile + per-IP rate limit (Upstash).
 
 ---
 
-## 7. Operations & automation workflows
+## 8. Operations & automation (inside the portal)
 
-This section is the biggest delta from v1 and the biggest leverage for the team.
+### 8.1 Performance request lifecycle
 
-### 7.1 Performance request → review → batched weekly survey → confirm-or-decline
-
-The workflow has four distinct phases. Each one's behavior is overridable per-request by the PR officer.
-
-```
-PHASE A: Intake & officer review (manual gate)
-─────────────────────────────────────────────
-[Site form submitted, including urgency choice]
-       │
-       ▼
-[Airtable: performance_requests.status = "New"]
-       │
-       ├──► Auto-reply to requester (reflects urgency: "we usually respond
-       │    in 2–3 weeks" vs. "we'll prioritize this and get back fast")
-       │
-       └──► PR officer notified; opens dashboard
-              │
-              ▼
-       [PR officer reviews each new request and decides:]
-         · Reject outright   → status = Declined → draft decline email
-         · Need more info    → email requester (drafted) → keep at Under Review
-         · Approve to poll   → status = Ready to Poll
-              │
-              │  When approving, officer confirms or overrides:
-              │   - polling_window_days   (default 30)
-              │   - min_couples_required  (default 4)
-              │   - include_in_next_survey (default ON)
-              ▼
-
-PHASE B: Inclusion rules (automatic, every survey send)
-───────────────────────────────────────────────────────
-A performance request is INCLUDED in a survey send IFF all are true:
-  1. status ∈ { Ready to Poll, Polling }
-  2. include_in_next_survey = TRUE
-  3. event_date is within polling_window_days from "now"
-  4. (per member) that member has no availability_response for this request yet
-
-PHASE C: Survey delivery (weekly auto or manual ad-hoc)
-──────────────────────────────────────────────────────
-[Weekly Vercel cron at site_settings.weekly_survey_day/time]
-   OR
-[PR officer clicks "Send survey now" in dashboard]
-       │
-       │  (if auto): only runs when site_settings.auto_send_weekly_survey = ON
-       │
-       ▼
-[Compute, per member, the list of requests that pass Phase B]
-[Also include any one-offs the officer explicitly added to this run
- via "Add to next survey" — bypasses the window rule for special cases]
-       │
-       ▼
-[Create one survey_runs row; for each member with ≥1 item, send ONE email
- with a tokenized link to their consolidated survey page]
-       │
-       ▼
-[Member opens link → sees every open request they haven't answered yet
- → marks Yes/No/Maybe (+optional notes) for each → submits once]
-       │
-       ▼
-[POST /api/availability/respond writes one availability_responses row per item;
- each performance_request flips to status = Polling on first response]
-
-PHASE D: Threshold check → email draft (per-request)
-────────────────────────────────────────────────────
-[After each response AND on a daily cron at response_deadline]
-       │
-       ▼
-[For each request currently in Polling:]
-   yes_count >= min_couples_required          → status = Threshold Met
-   past response_deadline & yes_count too low → status = Threshold Not Met
-       │
-       ▼
-[Gmail draft created in PR officer's inbox:
-   - Threshold Met   → CONFIRMATION draft (requester details + who's attending + next steps)
-   - Threshold Not Met → POLITE DECLINE draft (apology + invitation to ask again)
- Officer reviews, edits, sends. On send → status flips to Confirmed / Declined.]
-```
-
-**Why batched & weekly, not per-request:** members get pinged at most once a week, so they don't tune out. One email, one click, all open performances in one place. The PR officer can still hit "Send now" any week for urgent items.
-
-**Per-request overrides the PR officer can use:**
-
-| Lever | Where it lives | Use case |
-|---|---|---|
-| `polling_window_days` | per request | High-profile gig 2 months out: bump to 90 to start gathering availability early. Tiny local request 6 weeks out: leave default, it'll auto-include later. |
-| `include_in_next_survey` | per request, toggle | "Skip this one for the upcoming Sunday survey, I'm still waiting on the requester to confirm details." |
-| `min_couples_required` | per request | Big stage performance: bump to 8. Small private event: drop to 3. |
-| `response_deadline` | per request | Quick-answer requests get a tight 48h deadline. |
-| Manual add to survey | per request, button | Pull in something just outside the window because the officer wants to ask anyway. |
-
-**Global toggles** (in `site_settings`, editable by officers without code):
-
-- `auto_send_weekly_survey` — flip OFF during slow periods (summer break, exam weeks) so no robotic emails go out.
-- `weekly_survey_day` / `weekly_survey_time` — when the auto-send happens.
-- `default_polling_window_days` / `default_min_couples_required` / `default_response_deadline_days` — defaults applied to new requests at approval time.
-
-**Why drafts not auto-send:** the team's voice and judgment are part of their brand. The system saves the 90% of work (collecting availability, looking up requester details, drafting standard language) but the officer signs off on every external email.
-
-**Draft generation:** Claude API call with a system prompt that includes the team's tone-of-voice guide + the request payload + the poll outcome. Returns subject + body. Vercel Function calls Gmail API (`users.drafts.create`) to insert the draft into the assigned officer's mailbox. OAuth happens once per officer at onboarding.
-
-**Member survey UX:** mobile-friendly, no login. Each member's link is a signed token bound to their member record. The page renders something like:
-
-```
-Hey Sarah — here's this week's availability check.
-You have 3 open performances to weigh in on. Deadline: Fri 5/15.
-
-──────────────────────────────────────────────────
-1. Wedding reception · Sat May 23, 7 PM · Brenham, TX
-   Audience ~150. Performance type: full show.
-   Notes from PR officer: "Easy gig, 1hr drive."
-   [ ✅ Yes  ❌ No  🤔 Maybe ]  Optional notes: ___________
-
-2. Aggie Mom's Club gala · Fri Jun 6, 8 PM · College Station
-   ...
-
-3. Corporate event · Thu Jun 19, 6 PM · Houston
-   ...
-
-[ Save all responses ]
-```
-
-### 7.2 Private lesson request → review → instructor availability → quote → confirm
-
-Same review gate and survey mechanics as performance, but the audience is small (instructor pool, not the whole team).
+Same workflow as v2 (review gate → batched weekly survey → threshold check → Gmail draft), now executed inside the portal rather than across Airtable + Vercel Functions.
 
 ```
 PHASE A: Intake & officer review
-[Site form, including urgency] → status = New
-       → Auto-reply to requester (urgency-aware copy)
-       → Lessons officer reviews:
-            · Reject outright   → status = Declined → draft decline
-            · Approve to poll   → status = Ready to Poll, set polling_window_days
+[Form] → status=new → auto-reply
+[PR officer review tab]:
+   - Reject → status=declined → Draft decline email button
+   - Need info → email requester (drafted) → keep under_review
+   - Approve to poll → status=ready_to_poll
+        with overridable: polling_window_days, min_couples_required,
+                          include_in_next_survey
 
-PHASE B–C: Inclusion in weekly survey
-Same rules as §7.1, but the consolidated weekly email to each member
-shows BOTH performances and private lessons that pass the rules.
-The "Add to next survey" button works the same way.
-Lessons officer can also bypass the survey and directly DM 1–2 instructors
-when it's a small, low-friction request — toggle `include_in_next_survey = OFF`
-and the system stays out of the way.
+PHASE B: Inclusion rules (run at each survey send)
+A request goes in a survey for a member IFF:
+  1. status ∈ {ready_to_poll, polling}
+  2. include_in_next_survey = TRUE
+  3. event_date is within polling_window_days from now
+  4. that member has no survey_response for this target yet
 
-PHASE D: Assignment & quote
-Once a Yes response comes in (or officer assigns directly):
-       → status = Assigned, lessons officer sets price_quoted
-       → Click "Draft confirmation"
-       → Gmail draft: confirmation w/ price, instructor names, location,
-         what to bring, payment instructions
-       → Officer reviews + sends → status = Confirmed
+PHASE C: Survey delivery
+[Vercel cron at site_settings.weekly_survey_day/time]
+   OR
+[Officer clicks "Send survey now"]
+   → compute per-member item lists
+   → create survey_runs row
+   → send ONE consolidated email per member via Resend with a
+     signed-token link to their RSVP page (no login required)
+   → also exposes the same survey inside the portal for logged-in members
+
+PHASE D: Threshold check
+[On response + daily cron at response_deadline]
+   yes_count >= min_couples_required          → status=threshold_met
+   past deadline & yes too low                → status=threshold_not_met
+   → AI drafts confirmation or decline → Gmail draft in officer inbox
+   → Officer reviews, sends → status=confirmed / declined
+   → On confirmation: write event to Google Calendar with attendees
 ```
 
-**Same urgency lever on the intake form** (Standard / Quick answer / Hard deadline). The auto-reply copy adapts: a "Quick answer" request gets a confirmation that it's been flagged and someone will be in touch shortly, while a Standard one sets expectations for 2–3 weeks.
+**Officer overrides:**
 
-### 7.3 General inquiry auto-reply (good business practice)
+| Lever | Where | Use case |
+|---|---|---|
+| `polling_window_days` | per request | Big gig 60 days out: bump to 90. Small local in 4 weeks: leave default. |
+| `include_in_next_survey` | per request toggle | "Don't ask this Sunday, still negotiating with requester." |
+| `min_couples_required` | per request | Big stage: 8. Small private: 3. |
+| `response_deadline` | per request | Quick-answer requests get 48h. |
+| Manual add | per request | Pull in something outside the window. |
+| `auto_send_weekly_survey` | global | Flip OFF during breaks. |
+| `weekly_survey_day` / `time` | global | When the auto-send runs. |
 
-Two-tier:
+### 8.2 Private lesson request lifecycle
 
-1. **Instant templated reply** ("Thanks — we received your message about `<subject>` and will respond within 3–5 business days. Common questions are answered at /faq.").
-2. **AI-augmented suggestion** for the officer: when the inquiry maps cleanly to an FAQ entry, the system sends a richer auto-reply that links the relevant FAQ + offers next steps. If the AI isn't confident, it falls back to the templated reply and flags `needs_human = TRUE` in Airtable.
+Same review gate + survey inclusion rules. Audience for the survey is the instructor pool, not the whole team. Lessons officer can bypass the survey for low-friction asks (`include_in_next_survey = OFF`, direct DM to one instructor).
 
-### 7.4 Daily staleness check (preventive, not reactive)
+### 8.3 General inquiry auto-reply
 
-A Vercel Cron job runs nightly:
+Templated by default. If AI can map the inquiry to an FAQ entry with confidence, send a richer auto-reply that links the FAQ; otherwise fall back to the generic reply and flag `needs_human`.
 
-- If no `public_lessons` rows are `active` and any session date is < 7 days from now → email officers "Looks like the public lesson schedule may be out of date."
-- If `tryouts.tryout_date` has passed and no new cycle is `active` → email officers "Time to set up next year's tryout cycle."
-- If `announcements` has `end_date` in the past → auto-archive.
+### 8.4 Staleness detection (daily cron)
 
-This is the antidote to the current "no one notices the site is stale" problem.
+- No `active` public lessons scheduled in next 7 days → ping lessons officer.
+- Tryout cycle past date with no new `active` cycle → ping president.
+- Performance request stuck in `under_review` >7 days → ping PR officer.
+- Polling request past its `response_deadline` → ping PR officer to finalize.
+- Sponsor logo or member headshot missing → ping webmaster.
 
-### 7.5 What still requires a human
+Each alert appears as a banner in the relevant officer's dashboard and as an email if unresolved after 48 hours.
 
-To set expectations clearly:
+### 8.5 Email policy (unchanged)
 
-- Every external email goes out as a **draft**, reviewed by an officer.
-- Initial OAuth for Gmail is per-officer and needs re-consent yearly.
-- Setting `min_couples_required`, the poll deadline, and the assigned officer is manual per request (sensible defaults provided).
-- Accepting/declining is the officer's call — the system computes "you have enough yes responses," not "the answer is yes."
+Every external email is a *draft* in an officer's Gmail. Auto-replies are the one exception (templated, low-stakes, and acknowledged-not-committal).
 
 ---
 
-## 8. SEO migration plan
+## 9. Google Calendar integration
 
-This is the most failure-prone part of any replatform, so it gets its own checklist.
+**One shared calendar** owned by `wranglers.tamu.edu` (the team's Google Workspace group), edited via a service account.
 
-- [ ] Crawl current site (Screaming Frog free tier or `wget --mirror`) → export every URL, title, meta description, H1.
-- [ ] Map every legacy URL 1:1 to a new URL. If a path changes, add a 301 in `vercel.json` redirects.
-- [ ] Preserve `<title>`, meta description, and primary H1 wording on each page during launch; iterate after.
+**Event sources:**
+- Confirmed performances → calendar event with start/end, location, description (requester + notes), attendees = members who said Yes.
+- Public lesson sessions where `visible_to_public = TRUE` → calendar event with instructor attendees.
+- Private lessons confirmed → calendar event with assigned instructor(s).
+- Tryout cycle dates → calendar events (no attendees).
+
+**Sync direction:** portal → Calendar (one-way for now). Edits in Google Calendar don't sync back; the portal is source of truth.
+
+**Per-member personalized iCal feed:**
+- Each member's dashboard shows a "Subscribe to my schedule" URL.
+- The URL is a signed token endpoint that returns an `.ics` feed of only the events that member is assigned to.
+- They subscribe once in Apple Calendar / Google Calendar / Outlook and stay in sync forever.
+
+**Weekly digest email (Monday 8 AM CT, configurable):**
+- For each `current` member: gather their assigned events for the next 7 days.
+- Send a single Resend email: "Here's where you're expected this week — Sat 5/16 wedding in Brenham (3 PM call), Wed 5/20 CW1 class at the building (5:15 PM call)..."
+- Members can opt out per-account.
+
+---
+
+## 10. SEO migration plan
+
+- [ ] Crawl current site (Screaming Frog / `wget --mirror`) → export every URL, title, meta description, H1.
+- [ ] Map every legacy URL 1:1 to a new URL; 301 in `next.config.js` redirects for any deltas.
+- [ ] Preserve `<title>`, meta description, primary H1 at launch; iterate after.
 - [ ] Generate `sitemap.xml` and `robots.txt` at build.
-- [ ] Add JSON-LD structured data: `Organization`, `Event` (for tryouts/lessons), `VideoObject` (for YouTube embeds), `FAQPage` for `/faq`.
-- [ ] Open Graph + Twitter card images per page (auto-generated via Satori at build).
-- [ ] Verify in Google Search Console before flipping DNS; re-submit sitemap after.
-- [ ] Keep TAMU/Maroon Link/`thebatt.com` backlinks intact — they point to the apex, which we keep.
+- [ ] JSON-LD: `Organization`, `Event` (tryouts/lessons), `VideoObject` (videos), `FAQPage`.
+- [ ] OG / Twitter cards per page (auto-generated via `@vercel/og`).
+- [ ] Verify in Google Search Console before DNS flip; re-submit sitemap after.
 - [ ] Monitor Search Console for 404s for 30 days post-launch.
 
 ---
 
-## 9. Design system
+## 11. Design system
 
-**Color palette** (aligned with TAMU brand standards):
-
-- `--aw-maroon`: `#500000` (Aggie Maroon — primary)
-- `--aw-maroon-dark`: `#3D0000` (hovers, deep accents)
+**Color palette:**
+- `--aw-maroon`: `#500000` (primary)
+- `--aw-maroon-dark`: `#3D0000` (hovers, accents)
 - `--aw-white`: `#FFFFFF`
-- `--aw-cream`: `#F8F4EC` (warm off-white for sections, retains western feel)
+- `--aw-cream`: `#F8F4EC` (warm off-white sections)
 - `--aw-charcoal`: `#1A1A1A` (body text)
-- `--aw-gold-accent`: `#C8A951` (very sparing — buckle/trophy accent only, not primary)
+- `--aw-gold-accent`: `#C8A951` (very sparing)
 
 **Typography:**
+- Headlines: serif/slab (e.g., Playfair Display or Roboto Slab).
+- Body: Inter / Source Sans 3.
+- Tagline: small caps treatment of headline font.
 
-- Headlines: a strong serif or western-leaning slab (e.g., **Playfair Display** or **Roboto Slab**) to nod to the heritage without going full novelty-western.
-- Body: a clean humanist sans (**Inter** or **Source Sans 3**) for readability.
-- Tagline / accent: small caps treatment of headline font.
+**Imagery rules:** real performance and lesson photos, never stock cowboy clichés. Video > static on the homepage hero. Maroon dominant; cream/white for breathing room; gold as garnish.
 
-**Imagery rules:**
-
-- Real performance and lesson photos, never stock cowboy clichés.
-- Video > static on the homepage hero.
-- Maroon is a dominant background; cream and white provide breathing room; gold is a garnish.
-
-**Components to build:**
-
-- `<CTAButton variant="primary|secondary">` — the workhorse for the four CTAs.
-- `<HeroCTAGrid>` — 2×2 mobile / 4-across desktop, state-aware ("Tryouts open!" badge).
-- `<LessonCard>` (renders from `public_lessons` row).
-- `<TryoutCallout>` — state-aware: "Tryouts open" / "Tryouts closed — next cycle in...".
-- `<MemberCard>` with headshot + partner photo + bio.
-- `<VideoCard>` + `<VideoSection>` (used three times on `/watch`).
-- `<SponsorRow>`, `<FAQItem>`, `<AnnouncementBanner>`.
-- `<RequestForm>` — shared structure, swap fields per type.
-- `<AvailabilityResponseCard>` — the member-facing RSVP page (§7.1).
+**Portal styling:** same palette, more whitespace, denser data tables. shadcn/ui components themed with Aggie maroon as the primary color. The portal feels like a serious internal tool, not a recolored Bootstrap admin.
 
 ---
 
-## 10. AI usage
+## 12. AI usage
 
-Two distinct surfaces:
+### 12.1 Officer-facing email drafting
 
-### 10.1 Officer-facing: email drafting
+Claude API call per draft: system prompt = team tone-of-voice guide (stored in `site_settings`, editable) + structured payload (request details + outcome). Returns subject + body. Vercel Function inserts via Gmail API into the assigned officer's inbox. Pennies per draft. Officer always reviews before send.
 
-The thing we'd never want to skip a human on. Claude API call per draft (cheap — pennies per draft) takes the request payload + poll outcome + voice guide and returns a subject + body. Drafts go into Gmail for review. Voice guide lives in Airtable's `site_settings` so officers can refine it over time without code changes.
+### 12.2 Content-marketing assistance
 
-### 10.2 Content-marketing assistance (no engineering required)
+Three ready-to-use prompt templates in the team's Drive (no engineering required):
+1. **Polish this announcement** — paste rough notes → homepage announcement + IG caption.
+2. **Write a member bio** — paste hometown/major/fun fact → 2-sentence bio in team voice.
+3. **Performance recap** — paste event details + photos → recap + caption.
 
-Three ready-to-use prompt templates the team keeps in their Drive:
+Optional later: an in-portal "draft this for me" button next to bios, announcements, recaps.
 
-1. **"Polish this announcement"** — paste rough notes, get a homepage announcement + Instagram caption.
-2. **"Write a member bio"** — paste hometown/major/fun fact, get a 2-sentence bio in team voice.
-3. **"Performance recap"** — paste event details + a few photos, get a recap for the announcements tab + a social caption.
+### 12.3 Inquiry triage
 
-Optional later: a `/api/draft` endpoint that lets an officer paste notes into an Airtable field and get AI-drafted copy back into an adjacent field.
+When a general inquiry comes in, AI checks whether it maps to an FAQ entry. If high confidence: auto-reply with a tailored response linking the FAQ. If low confidence: generic auto-reply + flag for human.
 
 ---
 
-## 11. Build phases & timeline
+## 13. Build phases & timeline
 
-Each phase is shippable on its own. Now ~4 weeks of focused work given the added automation scope.
+Now ~6–8 weeks of focused work. Each phase is shippable on its own; deliver value continuously.
 
-### Phase 0 — Setup & content audit (2–3 days)
-- Repo scaffold (Astro + Tailwind + Vercel CLI).
-- Vercel project + preview deploys + custom domain on a staging subdomain.
-- Crawl current site, export full content inventory.
-- Asset audit (photos/videos), flag rights gaps.
-- Create the two Airtable bases with the §5 schema; seed with current data.
+### Phase 0 — Foundation (3–4 days)
+- Repo + Next.js scaffold + Tailwind + shadcn/ui + Drizzle/Prisma.
+- Neon Postgres project; schema migrations.
+- Vercel project with both domains attached.
+- NextAuth + Google OAuth + TAMU domain restriction.
+- Bootstrap officer whitelist.
+- CI: Vercel previews per PR with branched DB.
 
-### Phase 1 — Design system + static skeleton (3–5 days)
+### Phase 1 — Public site shell + design system (4–5 days)
 - Tailwind theme, typography, component library.
-- Build every legacy page with hardcoded content; all URLs in place.
+- All legacy URLs in place with hardcoded content.
 - Lighthouse target: 95+ across the board.
 
-### Phase 2 — Airtable CMS wiring (3–4 days)
-- Airtable API client + typed schema.
-- Astro pages fetch at build via getStaticPaths/getStaticProps equivalent.
-- Airtable webhook → POST `/api/webhooks/airtable` → on-demand revalidation per affected route.
-- Image handling: proxy attachment URLs through `/api/img/[id]` with caching, or pre-fetch at build.
+### Phase 2 — Portal foundation (5–6 days)
+- Auth-gated layout, role-aware navigation.
+- Dashboard skeleton.
+- Members CRUD (with photo uploads to Vercel Blob).
+- Site Content CMS tab covering site_settings, FAQ, sponsors, announcements.
+- Public site reads from DB; on-demand revalidate via webhook from portal saves.
 
 ### Phase 3 — Public forms + auto-replies (2 days)
-- Three form endpoints with Turnstile + rate limit.
-- Resend templated auto-replies.
-- Airtable rows created with correct status/assignment.
+- Four forms (performance, private lesson, contact, newsletter) writing to DB.
+- Resend auto-replies (urgency-aware copy).
+- Officer notifications in portal.
 
-### Phase 4 — `/watch` page + homepage polish (1–2 days)
-- Three video subsections with reorderable playlist from Airtable.
-- Music Videos section seeded with Midland, Randy Rogers, Ella Langley.
-- Homepage 4-CTA grid + featured video + announcement banner.
-- OG image generation for shareable links.
+### Phase 4 — Performance management + weekly survey (5–7 days)
+- Performance Management tab end-to-end.
+- Review gate, status transitions, per-request overrides.
+- Weekly Vercel cron computes inclusion, sends consolidated emails.
+- Member RSVP page (token-based, also accessible logged-in).
+- Threshold check + AI email draft + Gmail API integration.
 
-### Phase 5 — Operations automation (4–6 days, the big one)
-- Performance availability poll workflow end-to-end (§7.1).
-- Member RSVP page.
-- Gmail OAuth flow for officers + draft creation.
-- Private lesson workflow (§7.2).
-- AI auto-reply for general inquiries (§7.3).
-- Airtable Interfaces for officer dashboards.
-- Daily staleness cron (§7.4).
+### Phase 5 — Lessons management + scheduling (4–5 days)
+- Public sessions: schedule semester ahead, visibility toggle, publish_at.
+- Private lesson workflow (review → optional survey → assignment → quote → draft).
+- Instructor pool management.
 
-### Phase 6 — SEO migration + launch (2–3 days)
-- Full redirect map, sitemap, structured data.
-- Stage on `staging.aggiewranglers.com` for current officers to review.
-- DNS cutover during low-traffic window (summer break).
-- Search Console + Analytics verification.
+### Phase 6 — Calendar integration + weekly digest (3–4 days)
+- Service-account Google Calendar writes.
+- Per-member iCal feed.
+- Monday weekly digest cron.
 
-### Phase 7 — Officer handoff (1–2 days)
-- Loom recordings for each officer role: lessons officer, performance officer, president.
-- One-page printable cheat sheet pinned to each Airtable interface.
-- Documented OAuth re-consent process for new officer slates.
+### Phase 7 — Member resources (3 days)
+- Constitution viewer + versioning.
+- Alumni directory + self-registration + verification flow.
 
-**Total: ~4 weeks of focused work**, easily parallelizable.
+### Phase 8 — `/watch` + homepage polish (1–2 days)
+- Three video subsections from DB.
+- Music Videos seeded with Midland / Randy Rogers / Ella Langley.
+- 4-CTA hero, featured video, announcement banner.
+
+### Phase 9 — SEO migration + launch (2–3 days)
+- Redirects, sitemap, structured data, OG images.
+- Stage on `staging.aggiewranglers.com` for officer review.
+- DNS cutover during low-traffic window.
+- Search Console verification.
+
+### Phase 10 — Officer handoff (2 days)
+- Loom recordings per officer role.
+- Printable cheat sheets.
+- Documented OAuth re-consent process for officer transitions.
+
+**Total: ~6–8 weeks** of focused work, parallelizable across phases that don't depend on each other (e.g., Phases 4 and 5 are parallel).
 
 ---
 
-## 12. Costs
+## 14. Costs
 
 | Service | Tier | Monthly |
 |---|---|---|
-| Vercel | Hobby (sufficient) or Pro if we want more bandwidth | $0 or $20 |
-| Airtable | Free (1k records/base, 1GB attachments) | $0 |
-| Vercel KV (Upstash) | Free tier | $0 |
-| Resend | Free (3k emails/mo) | $0 |
+| Vercel | Pro (likely needed for the portal + cron + functions) | $20 |
+| Neon Postgres | Free tier (3 GB, 100 hr compute/mo) — pay $19 if we outgrow | $0–$19 |
+| Vercel Blob | First 1 GB free | $0 |
+| Upstash Redis | Free tier | $0 |
+| Resend | Free 3k/mo, $20 for 50k | $0–$20 |
 | Gmail API | Free | $0 |
+| Google Calendar API | Free | $0 |
 | Cloudflare Turnstile | Free | $0 |
-| Claude API (email drafts) | Pay-as-you-go, est. <500 calls/mo | ~$1–$5 |
+| Claude API (drafts + FAQ triage) | Pay-as-you-go | ~$2–$10 |
 | Domain renewal | Existing | ~$1 |
-| **Total ongoing** | | **~$2–$25/mo** |
+| **Total ongoing** | | **~$23–$70/mo** |
 
-If Airtable's free tier becomes constraining (most likely if attachments grow past 1GB), the Team plan is $20/seat/mo and we'd only need 1–2 seats since most officers can use the public Interfaces without a paid seat.
+Realistic baseline: **~$25–$30/mo**. Worst case at scale: ~$70/mo. Big jump from v2 but justified by the operational leverage.
 
 ---
 
-## 13. Risks & mitigations
+## 15. Risks & mitigations
 
 | Risk | Mitigation |
 |---|---|
-| SEO drop during migration | Strict 1:1 redirect map; preserve titles/H1s; pre-stage and verify in Search Console |
-| Airtable changes pricing or shuts free tier | Nightly export to Drive (Sheets format); architecture is CMS-agnostic — swap in 1–2 days |
-| Bad Airtable row breaks the site | API client validates schema; falls back to last-known-good cached data; never 500s the page |
-| Officer Gmail OAuth expires / officer graduates | Yearly re-consent reminder via cron; new officer onboarding doc includes OAuth step |
-| AI drafts a tone-deaf email | Drafts only — officer always reviews before send |
-| Form spam | Cloudflare Turnstile + honeypot + rate limit per IP |
-| Photo/video rights | Audit existing assets at Phase 0; flag anything that's not clearly team-owned |
-| Officer transitions lose access | Airtable workspace owned by `wranglers.tamu.edu` group, not an individual; service account credentials in the team's secure password manager; documented in handoff docs |
-| Availability poll URL leaks | URL is a signed token tied to a specific member; non-recognized tokens get a generic "ask the officer for your link" page |
-| Team abandons updating again | Updates are 1 cell or 1 photo drop; cheat sheet + 90-sec videos; daily staleness cron warns officers proactively |
+| Scope creep — portal becomes never-ending | Strict phase gates; portal ships in stages, each is independently useful. |
+| Maintenance burden across officer transitions | Yearly handoff docs; admin role transferred at officer turnover; clear "you can disable the portal and still run a public site" exit. |
+| SEO drop during migration | 1:1 redirect map; preserve titles/H1s; stage and verify in Search Console. |
+| Bad DB migration breaks portal *and* site | Migrations gated on staging; preview deploys use branched DB; nightly DB backups (Neon includes branching). |
+| Officer Gmail OAuth expires | Yearly re-consent reminder via cron; new officer onboarding doc includes step. |
+| AI drafts tone-deaf email | Drafts only — officer reviews before send. |
+| Form spam | Turnstile + honeypot + rate limit. |
+| Photo/video rights | Audit at Phase 0; flag anything not clearly team-owned. |
+| Survey email fatigue | Once/week max, opt-out per member, no per-request blasts. |
+| Calendar integration drift (member edits in GCal that don't reflect in portal) | Portal is source of truth; document this to officers; consider 2-way sync only if real demand emerges. |
+| Vendor lock-in (Neon, Vercel) | Standard Postgres + standard Next.js — both portable. Yearly DB export to a Drive folder for paranoid backup. |
+| Team abandons updating again | Daily staleness cron pings the right officer proactively; "publish on date X" feature lets officers batch work. |
 
 ---
 
-## 14. Open questions for the team
+## 16. Open questions for the team
 
-Things to confirm before Phase 1:
-
-1. **Officer point person.** Who owns the Airtable workspace and serves as primary site contact?
-2. **Communication channel for the team.** GroupMe, iMessage, Discord? (Determines how poll URLs get shared — manual paste vs. integration.)
-3. **Performance availability defaults.** What's "enough" — 4 couples? 6? Does it vary by performance type?
-4. **Weekly survey defaults.** What day/time should the auto-send run (Sunday 6 PM CT is my placeholder)? Default polling window in days (placeholder: 30)? Default response deadline (placeholder: 5 days)?
-5. **Urgency policy.** What does "Quick answer needed" actually mean operationally — does it bump the request into the *next* survey regardless of the day-of-week schedule, or just shorten the response deadline? My current spec leaves it to the officer's review step.
-6. **Flywire URL stability.** Do public-lesson signup URLs change every semester or stay stable? (Affects whether officers paste a new URL each cycle or just toggle `active`.)
-7. **Member-only area.** Password-protected resources (music library, choreography notes) on the site, or staying in Drive?
-8. **Banquet page.** Permanent page or one that goes live in the weeks before each year's banquet?
-9. **Merchandise.** Keep pointing to the external store, or build an embedded gallery?
-10. **Sponsor commitments.** Any pending agreements that need to launch with the new site?
-11. **Email "from" address.** Should drafts come from `president@`, individual officers, or a shared `bookings@` alias?
+1. **Officer point person & admin successor.** Who owns the system and who inherits admin if they graduate?
+2. **Communication channel for the team.** GroupMe / iMessage / Discord? (For sharing survey links and informal coordination.)
+3. **Performance availability defaults.** "Enough" = 4 couples? Varies by performance type?
+4. **Weekly survey defaults.** Day/time for auto-send? Default polling window? Default response deadline?
+5. **Urgency policy.** Does "Quick answer needed" bump into the *next* survey regardless of day-of-week, or just shorten the response deadline?
+6. **Weekly digest day/time.** Monday 8 AM CT a good default?
+7. **Constitution format.** Markdown rendered in-app (with version diffs) or PDF embed?
+8. **Alumni verification.** Who confirms an alumni signup is legit — president? A dedicated alumni officer? Match against members table?
+9. **Auth domain.** Restrict to `@tamu.edu` only, or also allow `@gmail.com` for alumni who've graduated and lost their TAMU email?
+10. **Flywire URL stability.** Do public-lesson signup URLs change every semester?
+11. **Banquet.** Permanent page or one that goes live in the weeks before each year's banquet?
+12. **Merchandise.** Keep external store or build embedded gallery?
+13. **Email "from" address.** Drafts come from `president@`, individual officers, or a shared `bookings@` alias?
+14. **Calendar ownership.** New shared `wranglers.tamu.edu` calendar, or reuse an existing one?
 
 ---
 
-## 15. What "done" looks like
+## 17. What "done" looks like
 
+**Public site:**
 - [ ] All legacy URLs respond 200 with content matching or improving on the old site.
-- [ ] Four primary CTAs visible above the fold on mobile, ordered by importance.
-- [ ] An officer can add a new public lesson session in under 60 seconds — no code, no deploy.
-- [ ] A new performance request triggers an instant auto-reply that reflects the requester's urgency choice, lands in the PR officer's review queue, and after officer approval becomes eligible for the next weekly survey per the inclusion rules.
-- [ ] The weekly batched survey auto-sends on schedule, includes only requests that pass the inclusion rules, and can be toggled off or triggered ad-hoc by the PR officer.
-- [ ] PR officer can override per-request: polling window, min couples, response deadline, "include in next survey," and add one-offs that fall outside the default window.
-- [ ] Once a request's threshold is met (or deadline passes), a confirmation-or-decline draft lands in the officer's Gmail.
-- [ ] A new private lesson request follows the same review → survey → draft pipeline (with a smaller instructor-pool audience).
-- [ ] A general inquiry triggers an FAQ-aware auto-reply.
-- [ ] `/watch` shows three subsections (Top Routines, Music Videos, Behind the Scenes) seeded with Midland, Randy Rogers, and Ella Langley.
+- [ ] Four primary CTAs visible above the fold on mobile.
+- [ ] `/watch` shows Top Routines, Music Videos (Midland / Randy Rogers / Ella Langley seeded), and Behind the Scenes.
 - [ ] Lighthouse: 95+ Performance / 100 Accessibility / 100 Best Practices / 100 SEO on `/`.
 - [ ] Search Console shows no new 404s after 14 days post-launch.
-- [ ] Loom videos handed to each officer role showing their most common workflows.
+
+**Public forms:**
+- [ ] All four forms write to DB, fire urgency-aware auto-replies, and surface in the portal for the right officer.
+
+**Team portal:**
+- [ ] Officers can sign in with Google (TAMU domain restricted); president approves new members.
+- [ ] Performance Management: review gate works, weekly survey auto-sends on schedule, per-request overrides work, confirmation/decline drafts land in officer Gmail.
+- [ ] Lessons Management: a semester of public sessions can be scheduled in advance and published on a chosen date; private lesson workflow produces quote drafts.
+- [ ] Members CRUD with photo uploads.
+- [ ] Site Content tab: officers can update homepage, FAQ, sponsors, videos, tryout cycle without code.
+- [ ] Constitution and alumni directory visible to authenticated members.
+
+**Calendar & comms:**
+- [ ] Confirmed performances and active lessons appear in the shared Google Calendar with attendees.
+- [ ] Each member can subscribe to their personal iCal feed.
+- [ ] Weekly digest email goes out Monday mornings with personal upcoming events.
+
+**Operations:**
 - [ ] Daily staleness cron is live and has sent at least one nudge in testing.
+- [ ] Officer handoff Loom videos delivered per role.
