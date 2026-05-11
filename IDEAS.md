@@ -112,7 +112,7 @@ This diagnostic is the magic of the structure. It's not three dance lessons — 
 - Camera awareness — where to face for the photographer and videographer.
 - "Recovery moves" — how to fix a missed beat or a stumble without it being visible.
 
-**Optional premium add-on: personalized video review.** Couples submit a clip of their practice for personalized feedback from a team instructor. ~$99-199 add-on per submission, real labor for the team but extremely high perceived value at the price. Could be a recurring revenue cap for couples who buy multiple reviews as their wedding approaches.
+**Optional premium add-on: personalized video review.** Couples submit a clip of their practice for personalized feedback from a team instructor. This has enough strategic potential on its own that it's broken out into its own entry below — see *Aggie Wranglers Coaching* — but it should be sold prominently as a checkout add-on to course buyers, since that's the highest-converting audience.
 
 **Differentiators vs. other wedding-dance content online:**
 - Production quality matching the team's existing video work.
@@ -125,6 +125,69 @@ This diagnostic is the magic of the structure. It's not three dance lessons — 
 **Production thought:** could potentially film both courses in the same multi-week push since the production setup (cameras, lighting, location, instructors) is the same. Economies of scale.
 
 **Same investigation list as fundamentals course** — the TAMU finance/SOFC piece is the gating question for both.
+
+---
+
+### Aggie Wranglers Coaching — personalized video review service `[idea]`
+
+**The pitch.** A standalone service: pay to send the team a video of you dancing and get back personalized, expert feedback. Initially marketed to wedding couples as an add-on to the wedding first-dance course, but the underlying service has room to grow into its own product line that survives independent of the courses entirely.
+
+**Why this is the most defensible product in the lineup.** Random instructors on Udemy and YouTube can produce a course that mimics ours; nobody can credibly claim "personalized feedback from a nationally recognized competition team that's been in Midland's, Randy Rogers', and Ella Langley's music videos." That credential is the moat. Couches up against "AI dance coach" too — the personal-touch, "real humans on a real team watched your video" framing is a durable advantage. **This is the one product where the Aggie Wranglers brand does irreplaceable work.**
+
+**Service tiers (rough):**
+
+| Tier | Format | Turnaround | Price | Notes |
+|---|---|---|---|---|
+| **Single review** | Async — couple uploads clip; instructor records voice/video commentary over it | 48-72 hrs | $99-149 | The entry-level offering; most-bought tier |
+| **Three-pack** | Three async reviews bookable over up to 3 months | 48-72 hrs each | $249-349 | Encourages couples to track progress; revenue multiplier |
+| **Live 1:1 session** | 45-min video call with an instructor; real-time feedback | Scheduled slot | $199-249 | Highest-value, most-bookable for the run-up to a wedding |
+| **Coaching package** | 4 async reviews + 2 live sessions over a month | 4-week program | $799-999 | For couples committing seriously |
+| **Text-only review** | Written feedback, no video commentary | 48 hrs | $49 | Low-friction entry tier; converts to higher tiers later |
+
+A monthly **group office hours** at $25-50 drop-in for course buyers to ask questions live could work as an audience-builder once the service has a base.
+
+**Expansion paths beyond wedding couples** (the reason this is its own entry, not just a course add-on):
+- **Performance prep.** Individuals or groups preparing for any kind of performance — corporate events, country bar showcases, college dance teams from other schools.
+- **Competition couples.** Real money here. Competitive country-Western dance couples pay serious coaching fees and the Wranglers' competition background is exactly the credential that warrants it. Could become the highest-margin segment.
+- **Social dancers leveling up.** People who already two-step at bars but want to get good. Lower price point, higher volume potential.
+- **Other dance teams.** Choreography critique, routine cleanup, "we have a regional in three weeks" emergency consults.
+- **Choreographer reviews.** Sister-team dance leaders sending their work for a second opinion.
+
+Each of those markets justifies its own landing page eventually. Wedding couples is just the most obvious starting wedge.
+
+**Operational pieces to build (mostly inside the existing portal):**
+- **Intake.** Form with video upload (Mux or Cloudflare Stream for storage; size + length caps), what they want feedback on, wedding/event date if applicable, song link, dance style.
+- **Review queue.** A new tab in the portal (or surfaced inside the existing performance/lesson management pattern). Instructors see open submissions, claim one, get a 48-hour SLA timer.
+- **Feedback delivery.** Instructor records voice/video commentary (Loom-style overlay on the couple's video, or a side-by-side response video). Feedback delivered as an unlisted YouTube link in a confirmation email or as a portal-hosted private page.
+- **Quality control.** First N reviews per new instructor are reviewed by a senior instructor before delivery. Standard rubric for what to give feedback on so couples get a consistent experience regardless of reviewer.
+- **Capacity management.** Surface "next available slot" date on the buy page so we don't oversell. Cap weekly submissions.
+- **Scheduling for live sessions.** Calendly-style booking against instructor availability; integrates with the portal calendar.
+- **Payments.** Stripe — same payment integration that unblocks the courses generally.
+
+**The alumni-revenue angle is potentially game-changing.** Graduating Wranglers can stay on as paid reviewers post-graduation. Implications:
+- Solves the "knowledge graduates with the senior" problem — alumni instructors stay actively connected.
+- Creates a meaningful alumni-engagement / alumni-income stream the team doesn't currently have.
+- Means service capacity grows over time instead of being capped at active-roster size.
+- Gives senior team members a reason to invest in being good reviewers — there's earning potential past graduation.
+- Naturally builds a multi-generational instructor pool. The team's institutional reputation compounds.
+
+This single feature potentially rewires the alumni relationship from "we occasionally see them at banquet" to "they're actively contributing to a revenue-generating service that reflects on the team." Worth taking seriously as a strategic lever.
+
+**Pilot path (before investing in course production):**
+1. Soft-launch coaching alone via the team's social channels — Instagram/TikTok posts inviting wedding couples to try it. Cap at 10-20 reviews in the first month.
+2. Tests demand, pricing sensitivity, operational workflow, and reviewer training all without committing to course filming.
+3. Generates real testimonials and case studies that become the marketing for the actual courses when they launch.
+4. Reveals the operational bottlenecks (turnaround, quality consistency, capacity) at small scale before they become production-level problems.
+
+**Risks:**
+- *Quality drift across reviewers.* The rubric + senior-review-on-first-N pattern is the mitigation; needs discipline.
+- *Capacity bottleneck if it takes off faster than the instructor pool grows.* Surface "next slot" prominently; cap weekly intake.
+- *Brand risk from a bad review.* A coach saying something tone-deaf about someone's first dance is a recoverable mistake; one that goes viral is not. Senior review of first-N submissions per new reviewer mitigates.
+- *SOFC complexity for paying alumni reviewers.* Same investigation as the courses themselves, but with the additional wrinkle of compensation flowing to non-current-members. Could turn out to be the gating constraint on the alumni-income angle.
+- *Liability around feedback on personal video.* Standard "we may use clips with your permission for marketing" plus a privacy guarantee in the intake. Don't store videos beyond what's needed.
+- *Cannibalizing in-person private lesson revenue locally.* Probably not — different customer segment, different price point — but worth checking once both exist.
+
+**Strategic positioning summary:** the Coaching service is the *defensive* product. The courses are the *scalable* product. The two reinforce each other — courses drive coaching upsells; coaching testimonials drive course sales; alumni reviewers reinforce both. **Worth piloting coaching first** because it's lower production cost, validates demand, and de-risks the course investment.
 
 ---
 
