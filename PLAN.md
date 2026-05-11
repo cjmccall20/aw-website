@@ -223,6 +223,12 @@ Two bases, separating "what the public sees" from "what officers operate on."
 
 **`site_settings`** (single record)
 - contact_email, address, tagline, mission_statement, instagram_url, tiktok_url, youtube_channel_url, facebook_url, x_url, tryouts_open (toggle), lessons_open (toggle), homepage_announcement
+- **auto_send_weekly_survey** (toggle, default ON)
+- **weekly_survey_day** (single-select Sun–Sat, default Sunday)
+- **weekly_survey_time** (time, default 6:00 PM CT)
+- **default_polling_window_days** (number, default 30) — how far into the future event_date can be and still be eligible for the survey
+- **default_min_couples_required** (number, default 4) — applied to new performance requests as a starting threshold
+- **default_response_deadline_days** (number, default 5) — how long members have to respond after a survey goes out
 
 **`public_lessons`** (one row per class session)
 - class_name, level (single-select: CW1/CW2/Jitt1/Jitt2), day, start_time, end_time, dates (multiple dates), instructors (link → members), signup_url (Flywire), active (toggle), notes
@@ -248,10 +254,29 @@ Two bases, separating "what the public sees" from "what officers operate on."
 ### Base 2: **Operations**
 
 **`performance_requests`** — one row per inbound form
-- created_at, requester_name, requester_email, requester_phone, organization, event_date, event_time, location, audience_size, performance_type, notes, status (New / Polling / Confirmed / Declined / Completed), assigned_officer (link → members), poll (link → availability_polls)
+- created_at, requester_name, requester_email, requester_phone, organization, event_date, event_time, location, audience_size, performance_type, notes
+- **urgency** (single-select: *Standard — 2–3 weeks notice is fine* / *Quick answer needed* / *Hard deadline*) — set by the requester on the intake form
+- **needs_answer_by** (date, optional) — only populated when urgency ≠ Standard
+- **status** (single-select: *New* → *Under Review* → *Ready to Poll* → *Polling* → *Threshold Met* / *Threshold Not Met* → *Confirmed* / *Declined* → *Completed*)
+- **polling_window_days** (number, default = `site_settings.default_polling_window_days`) — only included in surveys when `event_date` is within this many days of "now." PR officer can override per-request (e.g., bump to 90 for a high-profile bowl game way out).
+- **include_in_next_survey** (toggle, default ON when status = Ready to Poll) — manual override to skip a specific request in the upcoming survey without changing its status
+- **min_couples_required** (number, default = `site_settings.default_min_couples_required`)
+- **response_deadline** (date — computed when first added to a survey)
+- **assigned_officer** (link → members)
+- **review_notes** (long text — PR officer's internal notes from the review step)
+- **poll** (link → availability_polls)
 
 **`private_lesson_requests`**
-- created_at, requester_name, email, phone, group_size, preferred_dates, dance_type, experience_level, notes, status (New / Assigned / Confirmed / Completed), assigned_instructors (link → members), price_quoted
+- created_at, requester_name, email, phone, group_size, preferred_dates, dance_type, experience_level, notes
+- **urgency** (single-select: *Standard* / *Quick answer needed* / *Hard deadline*)
+- **needs_answer_by** (date, optional)
+- **status** (single-select: *New* → *Under Review* → *Ready to Poll* → *Polling* → *Assigned* → *Confirmed* / *Declined* → *Completed*)
+- **polling_window_days** (number, default from `site_settings`)
+- **include_in_next_survey** (toggle, default ON when status = Ready to Poll)
+- **response_deadline** (date)
+- **assigned_instructors** (link → members)
+- **price_quoted**
+- **review_notes** (long text)
 
 **`general_inquiries`**
 - created_at, name, email, subject, message, auto_reply_sent (toggle), needs_human (toggle), assigned_to (link → members)
@@ -261,6 +286,9 @@ Two bases, separating "what the public sees" from "what officers operate on."
 
 **`availability_responses`**
 - poll (link → availability_polls), member (link → members), available (single-select: Yes / No / Maybe), notes, responded_at
+
+**`survey_runs`** — one row per weekly batch or ad-hoc send
+- run_at, run_type (single-select: *Weekly auto* / *Manual*), triggered_by (link → members), included_performance_requests (link), included_private_lesson_requests (link), member_count, response_count, response_deadline, notes
 
 **`email_drafts`** (audit trail of what we drafted into Gmail)
 - created_at, draft_type (Confirmation / Decline / Quote / Follow-up), related_request, gmail_draft_id, prefilled_subject, prefilled_body, sent (toggle, updated by Gmail webhook)
@@ -275,8 +303,8 @@ Four public-facing forms, each a Vercel Function:
 
 | Form | Fields | What happens |
 |---|---|---|
-| **Performance request** | name, org, event date/time, location, audience size, performance type, notes | Writes to `performance_requests` (status=New) → fires templated auto-reply to requester via Resend → notifies performance officer → kicks off availability workflow (§7.1) |
-| **Private lesson request** | name, email, phone, group size, preferred dates, dance type, experience, notes | Writes to `private_lesson_requests` → auto-reply → notifies lessons officer (§7.2) |
+| **Performance request** | name, org, event date/time, location, audience size, performance type, notes, **urgency** (radio, default "Standard — 2–3 weeks notice is fine"; "Quick answer needed" reveals a `needs_answer_by` date field) | Writes to `performance_requests` (status=*New*) → templated auto-reply via Resend that reflects the requester's urgency choice → notifies performance officer → enters review queue (§7.1) |
+| **Private lesson request** | name, email, phone, group size, preferred dates, dance type, experience, notes, **urgency** (same as above) | Writes to `private_lesson_requests` (status=*New*) → auto-reply → notifies lessons officer (§7.2) |
 | **General contact** | name, email, subject, message | Writes to `general_inquiries` → fires AI-assisted auto-reply that reflects what the user asked about (§7.3) → flags `needs_human` if AI can't answer |
 | **Newsletter signup** | email | Adds to a simple list (Mailchimp free, or just an Airtable table to start) |
 
@@ -290,77 +318,157 @@ Spam: Cloudflare Turnstile (free, invisible) + per-IP rate limit in Vercel KV.
 
 This section is the biggest delta from v1 and the biggest leverage for the team.
 
-### 7.1 Performance request → confirm-or-decline (the high-value workflow)
+### 7.1 Performance request → review → batched weekly survey → confirm-or-decline
+
+The workflow has four distinct phases. Each one's behavior is overridable per-request by the PR officer.
 
 ```
-[Site form submitted]
+PHASE A: Intake & officer review (manual gate)
+─────────────────────────────────────────────
+[Site form submitted, including urgency choice]
        │
        ▼
 [Airtable: performance_requests.status = "New"]
        │
-       ├──► Auto-reply to requester: "Got it — we'll respond in 5–7 days"
+       ├──► Auto-reply to requester (reflects urgency: "we usually respond
+       │    in 2–3 weeks" vs. "we'll prioritize this and get back fast")
        │
-       └──► Email to performance officer with one-click "Start availability poll" button
+       └──► PR officer notified; opens dashboard
               │
               ▼
-       [Officer clicks button]
+       [PR officer reviews each new request and decides:]
+         · Reject outright   → status = Declined → draft decline email
+         · Need more info    → email requester (drafted) → keep at Under Review
+         · Approve to poll   → status = Ready to Poll
               │
+              │  When approving, officer confirms or overrides:
+              │   - polling_window_days   (default 30)
+              │   - min_couples_required  (default 4)
+              │   - include_in_next_survey (default ON)
               ▼
-       [POST /api/availability/start creates availability_polls row,
-        generates a tokenized RSVP URL, returns it to officer]
-              │
-              ▼
-       [Officer pastes URL into team GroupMe / iMessage / Discord]
-              │
-              ▼
-       [Members open URL → see event details → click Yes/No/Maybe]
-              │
-              ▼
-       [POST /api/availability/respond writes to availability_responses]
-              │
-              ▼
-       [Cron + on-response check: enough couples available?]
-              │
-       ┌──────┴──────────────┐
-       │ YES                 │ NO
-       ▼                     ▼
- [Gmail draft:          [Gmail draft:
-  CONFIRMATION email     POLITE DECLINE email
-  prefilled with         prefilled with apology
-  requester's details +  + offer to refer to
-  who's attending +      sister org / next time]
-  next steps]
-       │                     │
-       └─────────┬───────────┘
-                 ▼
-       [Officer reviews draft in Gmail, edits if needed, hits Send]
-                 │
-                 ▼
-       [Performance request status auto-updates via Gmail webhook]
+
+PHASE B: Inclusion rules (automatic, every survey send)
+───────────────────────────────────────────────────────
+A performance request is INCLUDED in a survey send IFF all are true:
+  1. status ∈ { Ready to Poll, Polling }
+  2. include_in_next_survey = TRUE
+  3. event_date is within polling_window_days from "now"
+  4. (per member) that member has no availability_response for this request yet
+
+PHASE C: Survey delivery (weekly auto or manual ad-hoc)
+──────────────────────────────────────────────────────
+[Weekly Vercel cron at site_settings.weekly_survey_day/time]
+   OR
+[PR officer clicks "Send survey now" in dashboard]
+       │
+       │  (if auto): only runs when site_settings.auto_send_weekly_survey = ON
+       │
+       ▼
+[Compute, per member, the list of requests that pass Phase B]
+[Also include any one-offs the officer explicitly added to this run
+ via "Add to next survey" — bypasses the window rule for special cases]
+       │
+       ▼
+[Create one survey_runs row; for each member with ≥1 item, send ONE email
+ with a tokenized link to their consolidated survey page]
+       │
+       ▼
+[Member opens link → sees every open request they haven't answered yet
+ → marks Yes/No/Maybe (+optional notes) for each → submits once]
+       │
+       ▼
+[POST /api/availability/respond writes one availability_responses row per item;
+ each performance_request flips to status = Polling on first response]
+
+PHASE D: Threshold check → email draft (per-request)
+────────────────────────────────────────────────────
+[After each response AND on a daily cron at response_deadline]
+       │
+       ▼
+[For each request currently in Polling:]
+   yes_count >= min_couples_required          → status = Threshold Met
+   past response_deadline & yes_count too low → status = Threshold Not Met
+       │
+       ▼
+[Gmail draft created in PR officer's inbox:
+   - Threshold Met   → CONFIRMATION draft (requester details + who's attending + next steps)
+   - Threshold Not Met → POLITE DECLINE draft (apology + invitation to ask again)
+ Officer reviews, edits, sends. On send → status flips to Confirmed / Declined.]
 ```
+
+**Why batched & weekly, not per-request:** members get pinged at most once a week, so they don't tune out. One email, one click, all open performances in one place. The PR officer can still hit "Send now" any week for urgent items.
+
+**Per-request overrides the PR officer can use:**
+
+| Lever | Where it lives | Use case |
+|---|---|---|
+| `polling_window_days` | per request | High-profile gig 2 months out: bump to 90 to start gathering availability early. Tiny local request 6 weeks out: leave default, it'll auto-include later. |
+| `include_in_next_survey` | per request, toggle | "Skip this one for the upcoming Sunday survey, I'm still waiting on the requester to confirm details." |
+| `min_couples_required` | per request | Big stage performance: bump to 8. Small private event: drop to 3. |
+| `response_deadline` | per request | Quick-answer requests get a tight 48h deadline. |
+| Manual add to survey | per request, button | Pull in something just outside the window because the officer wants to ask anyway. |
+
+**Global toggles** (in `site_settings`, editable by officers without code):
+
+- `auto_send_weekly_survey` — flip OFF during slow periods (summer break, exam weeks) so no robotic emails go out.
+- `weekly_survey_day` / `weekly_survey_time` — when the auto-send happens.
+- `default_polling_window_days` / `default_min_couples_required` / `default_response_deadline_days` — defaults applied to new requests at approval time.
 
 **Why drafts not auto-send:** the team's voice and judgment are part of their brand. The system saves the 90% of work (collecting availability, looking up requester details, drafting standard language) but the officer signs off on every external email.
 
 **Draft generation:** Claude API call with a system prompt that includes the team's tone-of-voice guide + the request payload + the poll outcome. Returns subject + body. Vercel Function calls Gmail API (`users.drafts.create`) to insert the draft into the assigned officer's mailbox. OAuth happens once per officer at onboarding.
 
-**Threshold logic:** `min_couples_required` is set per-request by the officer (default 4 couples = 8 dancers). System computes from `availability_responses` and surfaces "Threshold met" or "Threshold not met by deadline" states.
-
-**Member RSVP UX:** mobile-friendly page, no login, just "I'm [name from token], I'm available: ✅ Yes / ❌ No / 🤔 Maybe + optional notes." Token is signed and tied to the member record, so we know who responded.
-
-### 7.2 Private lesson request → quote → confirm
-
-Simpler than performance — no team-wide polling, just officer assignment.
+**Member survey UX:** mobile-friendly, no login. Each member's link is a signed token bound to their member record. The page renders something like:
 
 ```
-[Site form] → [Airtable: private_lesson_requests, status=New]
-            → [Auto-reply to requester]
-            → [Lessons officer notified, opens dashboard]
-            → [Officer assigns instructor(s) and a price]
-            → [Click "Draft confirmation"]
-            → [Gmail draft: confirmation w/ price, instructor names,
-               location, what to bring, payment instructions]
-            → [Officer reviews + sends]
+Hey Sarah — here's this week's availability check.
+You have 3 open performances to weigh in on. Deadline: Fri 5/15.
+
+──────────────────────────────────────────────────
+1. Wedding reception · Sat May 23, 7 PM · Brenham, TX
+   Audience ~150. Performance type: full show.
+   Notes from PR officer: "Easy gig, 1hr drive."
+   [ ✅ Yes  ❌ No  🤔 Maybe ]  Optional notes: ___________
+
+2. Aggie Mom's Club gala · Fri Jun 6, 8 PM · College Station
+   ...
+
+3. Corporate event · Thu Jun 19, 6 PM · Houston
+   ...
+
+[ Save all responses ]
 ```
+
+### 7.2 Private lesson request → review → instructor availability → quote → confirm
+
+Same review gate and survey mechanics as performance, but the audience is small (instructor pool, not the whole team).
+
+```
+PHASE A: Intake & officer review
+[Site form, including urgency] → status = New
+       → Auto-reply to requester (urgency-aware copy)
+       → Lessons officer reviews:
+            · Reject outright   → status = Declined → draft decline
+            · Approve to poll   → status = Ready to Poll, set polling_window_days
+
+PHASE B–C: Inclusion in weekly survey
+Same rules as §7.1, but the consolidated weekly email to each member
+shows BOTH performances and private lessons that pass the rules.
+The "Add to next survey" button works the same way.
+Lessons officer can also bypass the survey and directly DM 1–2 instructors
+when it's a small, low-friction request — toggle `include_in_next_survey = OFF`
+and the system stays out of the way.
+
+PHASE D: Assignment & quote
+Once a Yes response comes in (or officer assigns directly):
+       → status = Assigned, lessons officer sets price_quoted
+       → Click "Draft confirmation"
+       → Gmail draft: confirmation w/ price, instructor names, location,
+         what to bring, payment instructions
+       → Officer reviews + sends → status = Confirmed
+```
+
+**Same urgency lever on the intake form** (Standard / Quick answer / Hard deadline). The auto-reply copy adapts: a "Quick answer" request gets a confirmation that it's been flagged and someone will be in touch shortly, while a Standard one sets expectations for 2–3 weeks.
 
 ### 7.3 General inquiry auto-reply (good business practice)
 
@@ -562,12 +670,14 @@ Things to confirm before Phase 1:
 1. **Officer point person.** Who owns the Airtable workspace and serves as primary site contact?
 2. **Communication channel for the team.** GroupMe, iMessage, Discord? (Determines how poll URLs get shared — manual paste vs. integration.)
 3. **Performance availability defaults.** What's "enough" — 4 couples? 6? Does it vary by performance type?
-4. **Flywire URL stability.** Do public-lesson signup URLs change every semester or stay stable? (Affects whether officers paste a new URL each cycle or just toggle `active`.)
-5. **Member-only area.** Password-protected resources (music library, choreography notes) on the site, or staying in Drive?
-6. **Banquet page.** Permanent page or one that goes live in the weeks before each year's banquet?
-7. **Merchandise.** Keep pointing to the external store, or build an embedded gallery?
-8. **Sponsor commitments.** Any pending agreements that need to launch with the new site?
-9. **Email "from" address.** Should drafts come from `president@`, individual officers, or a shared `bookings@` alias?
+4. **Weekly survey defaults.** What day/time should the auto-send run (Sunday 6 PM CT is my placeholder)? Default polling window in days (placeholder: 30)? Default response deadline (placeholder: 5 days)?
+5. **Urgency policy.** What does "Quick answer needed" actually mean operationally — does it bump the request into the *next* survey regardless of the day-of-week schedule, or just shorten the response deadline? My current spec leaves it to the officer's review step.
+6. **Flywire URL stability.** Do public-lesson signup URLs change every semester or stay stable? (Affects whether officers paste a new URL each cycle or just toggle `active`.)
+7. **Member-only area.** Password-protected resources (music library, choreography notes) on the site, or staying in Drive?
+8. **Banquet page.** Permanent page or one that goes live in the weeks before each year's banquet?
+9. **Merchandise.** Keep pointing to the external store, or build an embedded gallery?
+10. **Sponsor commitments.** Any pending agreements that need to launch with the new site?
+11. **Email "from" address.** Should drafts come from `president@`, individual officers, or a shared `bookings@` alias?
 
 ---
 
@@ -576,8 +686,11 @@ Things to confirm before Phase 1:
 - [ ] All legacy URLs respond 200 with content matching or improving on the old site.
 - [ ] Four primary CTAs visible above the fold on mobile, ordered by importance.
 - [ ] An officer can add a new public lesson session in under 60 seconds — no code, no deploy.
-- [ ] A new performance request triggers an instant auto-reply, creates a poll URL, and produces a confirmation-or-decline draft in the officer's Gmail once availability is in.
-- [ ] A new private lesson request triggers an instant auto-reply and produces a quote/confirmation draft.
+- [ ] A new performance request triggers an instant auto-reply that reflects the requester's urgency choice, lands in the PR officer's review queue, and after officer approval becomes eligible for the next weekly survey per the inclusion rules.
+- [ ] The weekly batched survey auto-sends on schedule, includes only requests that pass the inclusion rules, and can be toggled off or triggered ad-hoc by the PR officer.
+- [ ] PR officer can override per-request: polling window, min couples, response deadline, "include in next survey," and add one-offs that fall outside the default window.
+- [ ] Once a request's threshold is met (or deadline passes), a confirmation-or-decline draft lands in the officer's Gmail.
+- [ ] A new private lesson request follows the same review → survey → draft pipeline (with a smaller instructor-pool audience).
 - [ ] A general inquiry triggers an FAQ-aware auto-reply.
 - [ ] `/watch` shows three subsections (Top Routines, Music Videos, Behind the Scenes) seeded with Midland, Randy Rogers, and Ella Langley.
 - [ ] Lighthouse: 95+ Performance / 100 Accessibility / 100 Best Practices / 100 SEO on `/`.
