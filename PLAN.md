@@ -7,13 +7,20 @@
 
 ---
 
-## 0. TL;DR — what changed in v3
+## 0. TL;DR — what's new in v4
 
-- **Dropped Airtable.** The team portal is now a custom app, so Airtable's "lite CRUD UI" value goes away. Postgres becomes the single source of truth; the portal is the CMS, ops console, and surveys tool; the public site is a thin read-only view over the same DB.
-- **Added `team.aggiewranglers.com`** — authenticated portal with role-based tabs: Performance Management, Lessons Management, Members, Site Content, Calendar, Constitution, Alumni Directory, Settings.
-- **Added Google Calendar integration** — confirmed performances and scheduled lessons populate the team calendar; each event lists the team members assigned; members get a weekly Monday digest of where they're expected.
-- **Added scheduled-publish for public content** — officers can schedule a full semester of lessons in advance, hidden from the public site, then publish on a date or via toggle.
-- **Trade-off, explicit:** this is significantly more to build (~6–8 weeks instead of ~4) and more to maintain across officer turnover. The payoff is one coherent system instead of three half-integrated SaaS tools, and the team's day-to-day work happens inside an interface they control.
+- **No Claude API in the system.** Email drafts are **templates with variable substitution**, not AI generation. Each template (confirmation, decline, auto-reply, survey email, weekly digest, staleness alert) lives as a row in the DB and is editable in the portal's Settings tab. Officers can pick from a small set of tone variants (e.g., "warm casual," "formal") per template. Removes a vendor, drops cost to ~$0 of API spend, makes outbound email behavior fully predictable. (Anyone on the team can still use ChatGPT/Claude *externally* to draft Instagram captions or polish bios — that's a workflow, not a system dependency.)
+- **Drive-time-aware availability surveys** via Google Maps API. Performance request form uses Google Places autocomplete on the address; backend calls Distance Matrix API to compute drive time from the building (8827 Gauge Dr). Each survey item shows the member their *real* time commitment: "7 PM performance in Brenham — 1h 15m drive — you'd need to be free roughly 4:45 PM to 10:45 PM." Officer can override drive time, call time (default 60 min before), and return buffer (default 15 min) per request. Cost: pennies a month.
+- **Database choice still on the table.** The v3 framing ("dropped Airtable") was overly absolute. Either Supabase Postgres OR Airtable works; comparison and recommendation in §3.
+- **Build phases and costs updated** to reflect the simpler email path and added Maps API.
+
+### Carryovers from v3 (still the plan)
+
+- Public site at `aggiewranglers.com` with four conversion CTAs and preserved legacy URLs.
+- Authenticated team portal at `team.aggiewranglers.com` with role-gated tabs.
+- Performance review gate → batched weekly survey → threshold check → confirmation/decline draft in officer Gmail (just templated now, not AI-drafted).
+- Google Calendar integration with per-member iCal feed and Monday digest.
+- Schedule-ahead-and-hide for public lessons.
 
 ---
 
@@ -98,7 +105,8 @@
 
 ```
                             ┌──────────────────────────┐
-                            │  Postgres (Neon)         │
+                            │  Supabase                │
+                            │  Postgres + Auth + Files │
                             │  Single source of truth  │
                             └──────────┬───────────────┘
                                        │
@@ -129,14 +137,14 @@
         ┌────────────────────────────────────────────────┼─────────────────────────────┐
         │                          │                     │                  │           │
         ▼                          ▼                     ▼                  ▼           ▼
- ┌──────────────┐         ┌────────────────┐    ┌────────────────┐  ┌────────────┐ ┌────────────┐
- │ Resend       │         │ Gmail API      │    │ Google Cal API │  │ Vercel     │ │ Vercel     │
- │ (auto-reply, │         │ (drafts into   │    │ (team calendar │  │ Cron       │ │ Blob       │
- │  RSVP links, │         │  officer inbox │    │  events + per- │  │ (weekly    │ │ (photos,   │
- │  digests)    │         │  for review)   │    │  member feed)  │  │  surveys,  │ │  logos,    │
- │              │         │                │    │                │  │  digests,  │ │  PDFs)     │
- │              │         │                │    │                │  │  staleness)│ │            │
- └──────────────┘         └────────────────┘    └────────────────┘  └────────────┘ └────────────┘
+ ┌──────────────┐  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐  ┌────────────┐
+ │ Resend       │  │ Gmail API      │  │ Google Cal API │  │ Google Maps    │  │ Vercel     │
+ │ (auto-reply, │  │ (TEMPLATED     │  │ (team calendar │  │ (Places auto-  │  │ Cron       │
+ │  RSVP links, │  │  drafts into   │  │  events + per- │  │  complete +    │  │ (weekly    │
+ │  digests)    │  │  officer inbox │  │  member feed)  │  │  Distance      │  │  surveys,  │
+ │              │  │  for review)   │  │                │  │  Matrix → real │  │  digests,  │
+ │              │  │                │  │                │  │  drive times)  │  │  staleness)│
+ └──────────────┘  └────────────────┘  └────────────────┘  └────────────────┘  └────────────┘
 ```
 
 ### Why this stack
@@ -145,31 +153,47 @@
 |---|---|---|
 | Framework | **Next.js 15 (App Router)** | One app, two domains via middleware. Public pages render static/ISR; portal pages render dynamically with auth. Future maintainers (likely students) only learn one stack. |
 | Hosting | **Vercel** | Per request. Hobby tier is borderline-sufficient for one of these projects — we'll likely need Pro ($20/mo) once we have the portal + cron + functions. |
-| Database | **Neon Postgres** (or Supabase if we want their auth/storage too) | Cheap, generous free tier, branching for preview deploys, serverless-friendly. |
+| Database + Auth + Files | **Supabase** (or Airtable — see below) | One vendor for Postgres, Google OAuth (`@tamu.edu` restricted), and file storage for headshots/logos/PDFs. RLS gives RBAC at the DB layer. |
 | ORM | **Drizzle** (or Prisma) | Drizzle is leaner for serverless; Prisma is more familiar. Either is fine. |
-| Auth | **NextAuth.js (Auth.js)** + Google OAuth | Domain-restrict to `@tamu.edu`; first-login = pending approval; president approves and assigns roles. |
-| RBAC | **roles[] on user** + route middleware | Simple, transparent, easy to audit. |
+| RBAC | **roles[] on user** + route middleware + RLS | Simple, transparent, defense in depth. |
 | UI | **shadcn/ui + Tailwind** | Lifts the portal from "Bootstrap admin panel" to "professional product" with little effort. |
-| File storage | **Vercel Blob** | Headshots, sponsor logos, constitution PDF. No separate S3 setup. |
-| Cache / KV | **Upstash Redis** via Vercel KV | Rate limits, survey response idempotency, session sidecar. |
-| Email — transactional | **Resend** | Auto-replies, survey emails, weekly digests. |
-| Email — officer drafts | **Gmail API** | Insert drafts into officer mailboxes for human review. |
+| Cache / KV | **Upstash Redis** | Rate limits, survey response idempotency. |
+| Email — transactional | **Resend** | Auto-replies, survey emails, weekly digests. All from DB-stored templates. |
+| Email — officer drafts | **Gmail API** | Inserts **templated** confirmation/decline drafts into officer mailboxes for human review. No AI in the loop. |
 | Calendar | **Google Calendar API** | Shared "Aggie Wranglers" calendar + per-member iCal feeds. |
+| Maps / drive time | **Google Maps Platform** (Places + Distance Matrix) | Address autocomplete on the performance form; compute real drive time from the building to the venue. |
 | Background jobs | **Vercel Cron** + Upstash QStash for delayed | Weekly surveys, digests, staleness checks. |
 | Analytics | **Vercel Web Analytics** (or Plausible $9/mo) | Privacy-friendly. |
 | Domain | `aggiewranglers.com` apex + `team.aggiewranglers.com` subdomain | Both point to the same Vercel project; middleware routes by host. |
 
-### Why drop Airtable
+### Database choice: Supabase vs. Airtable
 
-Airtable was attractive as "lite CRUD UI for the team," but once we're building a real portal with role-based tabs and custom workflows, that value goes away. A second SaaS to learn and pay for, with a worse permissions model than what we can build, isn't worth it. The portal we build *is* the CRUD app.
+Both are viable. The choice is really "do we want one source of truth, or one source of truth plus a backup CRUD UI?"
 
-What we lose: Airtable's no-code automations, mobile app, and "I can edit a row in 5 seconds" UX. We get all of those back via well-built portal screens — and the portal can do things Airtable can't (workflow approvals, calendar sync, weekly digests, etc.).
+**Recommended: Supabase.**
+- Single vendor for **Postgres + auth + file storage** — replaces Neon + NextAuth + Vercel Blob from the v3 stack with one bundled service.
+- Real Postgres: proper joins, transactions, no API rate limits, persistent file URLs (Airtable attachment URLs expire and need proxying).
+- Row-Level Security (RLS) for RBAC at the database layer — defense in depth even if a portal bug slips through.
+- Supabase dashboard provides a perfectly serviceable raw-table editor for officers/admins who want bulk-edit access.
+- Free tier: 500 MB DB + 1 GB storage + 50K MAU. Plenty.
+
+**Airtable is fully viable if "officers can also edit data directly" is a hard requirement.** The architecture barely changes — Airtable becomes the storage layer, the portal still owns workflows, the public site still reads via the portal/cache. Tradeoffs:
+- *Pro:* Officers can edit data directly in Airtable's web/mobile app if the portal is down or they want the spreadsheet feel.
+- *Pro:* Familiar UX for non-technical edits.
+- *Con:* Two interfaces means the data definitions can drift if someone restructures a base outside the app.
+- *Con:* API rate limits (5 req/sec/base on free tier) start to bite as we batch weekly surveys.
+- *Con:* Attachment URLs expire — every member photo, sponsor logo, and PDF needs a proxy or re-host.
+- *Con:* Free tier caps at 1,000 records per base (alumni would push this eventually).
+
+**Why I'd lean Supabase, plain version:** the portal will be the team's primary interface either way. Once that's true, layering Airtable underneath adds another system to maintain without a corresponding capability gain. The portal we're building IS the easy CRUD UI — there's no reason to put a second one beneath it.
+
+**If we go Airtable anyway:** I'll spec the portal to read/write Airtable instead of Postgres, with a thin Upstash cache to soak up rate limits and a `/api/img/[id]` proxy for attachments. Costs ~3–4 days of build time vs. Supabase.
 
 ---
 
 ## 4. The team portal (`team.aggiewranglers.com`)
 
-The portal is structured as nine tabs, each with role-gated access. Anyone signed in sees a personalized Dashboard; everything else depends on roles.
+The portal is structured as ten tabs, each with role-gated access. Anyone signed in sees a personalized Dashboard; everything else depends on roles.
 
 ### 4.1 Tabs & features
 
@@ -209,17 +233,34 @@ The portal is structured as nine tabs, each with role-gated access. Anyone signe
 - Member-specific "my events" filter.
 - Personal iCal feed URL (one-click copy).
 
-**7. Constitution** *(all members + alumni)*
-- View current constitution (markdown rendered, or PDF embed — pick one in §16).
-- Version history.
-- Officers can propose amendments; president approves to publish a new version.
+**7. Resources** *(all members + alumni; officers can upload)*
+- Library of team files: **constitution PDF**, choreography notes, contracts/templates, historical photos by year, music library catalog (links), important contact lists, sponsor decks, etc.
+- Each file: title, description, category, uploaded_by, uploaded_at, visibility (`members_only` / `members_and_alumni` / `officers_only`).
+- Drag-drop upload to Supabase Storage; previews for PDFs and images.
 
-**8. Alumni Directory** *(members + alumni)*
+**8. Move Library** *(all members + alumni; officers can edit; alumni can submit)*
+- The institutional-memory antidote: a structured catalog of every jitt / stunt move the team knows.
+- Each move record:
+  - `name` + `aliases[]` (since alumni often know moves by different names)
+  - `category` (Spin / Lift / Throw / Dip / Combination / Footwork / Aerial)
+  - `difficulty` (Beginner / Intermediate / Advanced / Expert)
+  - `public_safe` toggle (taught in public lessons vs. team-only)
+  - `videos[]` — multiple angles welcomed (front, side, slow-mo); store as unlisted YouTube links by default to avoid storage costs, with file upload as fallback for genuinely private moves
+  - `description` (markdown, with counts and step-by-step)
+  - `safety_notes`, `partner_requirements`
+  - `originated_by`, `originated_year` (lore — "first done by X in '02")
+  - `contributed_by_id`, `contributed_at`
+  - `status` (Draft / Published / Archived)
+- Filterable by category, difficulty, public-safe, era.
+- **Alumni contribution flow:** alumni can submit moves they remember from their era → goes into a `move_contributions` queue → officer (or the captain) reviews and either publishes, requests revisions, or archives. This is how we recapture knowledge before more alumni drift away.
+- Visibility for `public_safe = false` moves restricted to `current` members + officers; alumni see metadata but not the videos by default (configurable per move if it's been taught publicly).
+
+**9. Alumni Directory** *(members + alumni)*
 - Searchable by graduation year, hometown, current city.
-- Each alumnus controls their own opt-in/opt-out and contact-permissions.
+- Each alumnus controls their own opt-in/opt-out and contact permissions.
 - Self-service registration with email verification.
 
-**9. Settings** *(President, scoped subsets for other officers)*
+**10. Settings** *(President, scoped subsets for other officers)*
 - Global ops settings: `auto_send_weekly_survey`, `weekly_survey_day`, `weekly_survey_time`, `default_polling_window_days`, `default_min_couples_required`, `default_response_deadline_days`.
 - Email "from" / signature config per officer role.
 - Calendar integration (which Google Calendar to write to).
@@ -319,7 +360,10 @@ Grouped by domain. All tables have `id`, `created_at`, `updated_at`.
 ### 6.3 Operations
 
 - **performance_requests**:
-  - intake: `requester_name`, `requester_email`, `requester_phone`, `organization`, `event_date`, `event_time`, `location`, `audience_size`, `performance_type`, `notes`, `urgency` (enum), `needs_answer_by`
+  - intake: `requester_name`, `requester_email`, `requester_phone`, `organization`, `event_date`, `event_start_time`, `event_end_time`, `audience_size`, `performance_type`, `notes`, `urgency` (enum), `needs_answer_by`
+  - venue (from Google Places): `venue_name`, `venue_formatted_address`, `venue_place_id`, `venue_lat`, `venue_lng`
+  - travel (computed via Distance Matrix at intake, override-able): `drive_time_minutes`, `drive_distance_miles`, `call_time_minutes_before` (default 60), `return_buffer_minutes` (default 15)
+  - derived (read-only views): `availability_window_start = event_start_time - call_time_minutes_before - drive_time_minutes`, `availability_window_end = event_end_time + drive_time_minutes + return_buffer_minutes`
   - workflow: `status` (`new` → `under_review` → `ready_to_poll` → `polling` → `threshold_met` / `threshold_not_met` → `confirmed` / `declined` → `completed`), `assigned_officer_id`, `review_notes`, `polling_window_days`, `min_couples_required`, `response_deadline`, `include_in_next_survey`
   - outcome: `confirmation_sent_at`, `gcal_event_id`
 - **private_lesson_requests**: same shape, minus `audience_size`, plus `group_size`, `dance_type`, `experience_level`, `preferred_dates`, `price_quoted`, `assigned_instructor_ids[]`.
@@ -328,10 +372,17 @@ Grouped by domain. All tables have `id`, `created_at`, `updated_at`.
 - **survey_responses**: `survey_run_id`, `member_id`, `target_type` (`performance` / `private_lesson`), `target_id`, `available` (`yes` / `no` / `maybe`), `notes`, `responded_at`. Unique on (survey_run_id, member_id, target_type, target_id).
 - **email_drafts**: `created_at`, `draft_type`, `related_type`, `related_id`, `assigned_officer_id`, `gmail_draft_id`, `prefilled_subject`, `prefilled_body`, `sent_at`.
 
-### 6.4 Member-facing
+### 6.4 Member-facing resources
 
-- **constitution_versions**: `version_number`, `title`, `body_markdown`, `pdf_url` (optional), `published_at`, `published_by_id`, `summary_of_changes`.
+- **resources**: `title`, `description`, `category` (`Constitution` / `Choreography` / `Contracts` / `Historical` / `Sponsor Decks` / `Other`), `file_url` (Supabase Storage), `file_type`, `visibility` (`members_only` / `members_and_alumni` / `officers_only`), `uploaded_by_id`, `uploaded_at`. The current constitution is just one row with `category = Constitution`; older versions stay in the same table with version notes in the title.
+- **moves**: `name`, `aliases[]`, `category`, `difficulty`, `public_safe` (bool), `description_markdown`, `safety_notes`, `partner_requirements`, `originated_by`, `originated_year`, `contributed_by_id`, `contributed_at`, `status` (`draft` / `published` / `archived`), `display_order`.
+- **move_videos**: `move_id`, `video_url` (YouTube unlisted or Supabase Storage), `angle` (`front` / `side` / `slow_mo` / `other`), `caption`, `uploaded_by_id`, `uploaded_at`.
+- **move_contributions**: `submitted_by_id` (likely an alumnus), `payload_json` (proposed move data), `proposed_videos[]`, `status` (`pending` / `approved` / `revisions_requested` / `rejected`), `reviewed_by_id`, `review_notes`, `published_move_id` (FK once approved).
 - **alumni_profiles**: `member_id` (FK), `graduation_year`, `current_city`, `current_role`, `what_im_up_to`, `contact_permission` (enum), `verified_at`, `verified_by_id`.
+
+### 6.5 Email templates
+
+- **email_templates**: `slot` (enum: `perf_request_received_standard`, `perf_request_received_quick`, `perf_confirmation`, `perf_decline`, `private_lesson_received`, `private_lesson_quote`, `private_lesson_decline`, `general_inquiry_ack`, `survey_invitation`, `weekly_digest`, `staleness_alert_lessons`, etc.), `variant` (e.g., `default`, `formal`, `warm`), `subject_template`, `body_template` (Handlebars-style with `{{variables}}`), `is_active`, `updated_by_id`, `updated_at`. Officers pick the active variant per slot in Settings.
 
 ---
 
@@ -341,7 +392,7 @@ Four public forms. Each Vercel Function writes to Postgres and triggers the auto
 
 | Form | Fields | What happens |
 |---|---|---|
-| **Performance request** | name, org, event date/time, location, audience size, performance type, notes, **urgency** (default "Standard — 2–3 weeks notice is fine") | Inserts `performance_requests` row, status=`new` → Resend auto-reply with urgency-aware copy → PR officer notified in portal |
+| **Performance request** | name, org, event date, **start + end time**, **venue address (Google Places autocomplete + validation)**, audience size, performance type, notes, **urgency** (default "Standard — 2–3 weeks notice is fine") | Inserts `performance_requests` row, status=`new`. Backend immediately calls Distance Matrix to compute `drive_time_minutes` and `drive_distance_miles` and store on the row. Resend auto-reply with urgency-aware templated copy. PR officer notified in portal. |
 | **Private lesson request** | name, email, phone, group size, preferred dates, dance type, experience, notes, **urgency** | Inserts row → auto-reply → lessons officer notified |
 | **General contact** | name, email, subject, message | Inserts `general_inquiries` → templated auto-reply, FAQ-aware if the AI is confident, else generic + `needs_human=TRUE` |
 | **Newsletter signup** | email | Adds to a simple `newsletter_subscribers` table |
@@ -358,13 +409,18 @@ Same workflow as v2 (review gate → batched weekly survey → threshold check �
 
 ```
 PHASE A: Intake & officer review
-[Form] → status=new → auto-reply
+[Form submitted with venue from Places autocomplete]
+   → backend calls Distance Matrix: origin=building, dest=venue
+   → drive_time_minutes, drive_distance_miles persisted on the row
+   → status=new
+   → templated auto-reply (urgency-aware) sent via Resend
 [PR officer review tab]:
    - Reject → status=declined → Draft decline email button
-   - Need info → email requester (drafted) → keep under_review
+   - Need info → email requester (drafted from template) → keep under_review
    - Approve to poll → status=ready_to_poll
         with overridable: polling_window_days, min_couples_required,
-                          include_in_next_survey
+                          include_in_next_survey, drive_time_minutes,
+                          call_time_minutes_before, return_buffer_minutes
 
 PHASE B: Inclusion rules (run at each survey send)
 A request goes in a survey for a member IFF:
@@ -381,6 +437,9 @@ PHASE C: Survey delivery
    → create survey_runs row
    → send ONE consolidated email per member via Resend with a
      signed-token link to their RSVP page (no login required)
+   → each survey item shows the REAL availability window:
+       "Wedding · Sat May 23 · Brenham, TX · 1h 15m drive
+        You'd need to be available roughly 4:45 PM to 10:45 PM."
    → also exposes the same survey inside the portal for logged-in members
 
 PHASE D: Threshold check
@@ -422,9 +481,44 @@ Templated by default. If AI can map the inquiry to an FAQ entry with confidence,
 
 Each alert appears as a banner in the relevant officer's dashboard and as an email if unresolved after 48 hours.
 
-### 8.5 Email policy (unchanged)
+### 8.5 Drive-time computation
 
-Every external email is a *draft* in an officer's Gmail. Auto-replies are the one exception (templated, low-stakes, and acknowledged-not-committal).
+Triggered when a performance request is created (and re-triggerable on demand from the officer's review screen if the venue is edited).
+
+```
+inputs:  origin = "8827 Gauge Dr, College Station, TX"  (from site_settings)
+         destination = venue_formatted_address (from Places autocomplete)
+         depart_time = event_start - call_time_minutes_before  (for traffic estimate)
+
+calls:   Google Distance Matrix API
+returns: drive_time_minutes (with traffic), drive_distance_miles
+
+stored on performance_requests row; not re-fetched per page render.
+```
+
+The derived availability window then drives:
+- The text shown on each survey item ("you'd need to be free X to Y").
+- The duration of the calendar event when the performance is confirmed.
+- The Monday weekly digest entry for assigned members.
+
+**Officer overrides per request** if the API got it wrong or special circumstances apply (chartered bus, overnight stay, early load-in):
+
+| Field | Default | Override use case |
+|---|---|---|
+| `drive_time_minutes` | computed from API | Manual fix if API picks a weird route or there's a bus. |
+| `call_time_minutes_before` | 60 | Big productions: 90–120. Pickup gigs: 30. |
+| `return_buffer_minutes` | 15 | Overnight stays: set to 0 and add a separate return event. |
+
+**Cost guardrails:** cache results per `(origin, place_id)` pair in Upstash for 30 days. Distance Matrix is ~$5 per 1,000 elements; even 200 requests/year is well under $1.
+
+### 8.6 Email policy
+
+Every external email goes via one of two paths:
+
+1. **Auto-reply (sent immediately by Resend)** — templated, low-stakes, sets expectations. Used for: form submission acknowledgments, RSVP-link delivery, weekly digest, staleness alerts to officers.
+2. **Templated draft into officer's Gmail** — for confirmations, declines, quotes, and anything else the requester will judge the team on. The system uses a Handlebars-style template stored in `email_templates` (DB), substitutes variables from the request and survey results, and inserts the result as a Gmail draft via the API. Officer reads it, edits if they want, hits Send.
+
+Templates are editable in the portal Settings tab. We ship with sensible defaults (one warm-casual variant and one formal variant per slot) and the team can revise wording without code changes.
 
 ---
 
@@ -488,22 +582,13 @@ Every external email is a *draft* in an officer's Gmail. Auto-replies are the on
 
 ## 12. AI usage
 
-### 12.1 Officer-facing email drafting
+**Deliberately none in the system itself.** All outbound emails are templated. All inquiry triage is keyword-based against FAQ entries. The portal has no Claude/OpenAI API key.
 
-Claude API call per draft: system prompt = team tone-of-voice guide (stored in `site_settings`, editable) + structured payload (request details + outcome). Returns subject + body. Vercel Function inserts via Gmail API into the assigned officer's inbox. Pennies per draft. Officer always reviews before send.
+**Why:** predictability, zero ongoing API spend, no risk of a tone-deaf AI-drafted email going to a paying client, and one fewer vendor dependency for future officer slates to manage.
 
-### 12.2 Content-marketing assistance
+**External AI use is encouraged for content marketing** — anyone on the team can paste rough notes into ChatGPT/Claude to draft an Instagram caption, polish a member bio, or write a performance recap. Three prompt templates kept in the team's Drive cover the common cases. None of this touches the production system.
 
-Three ready-to-use prompt templates in the team's Drive (no engineering required):
-1. **Polish this announcement** — paste rough notes → homepage announcement + IG caption.
-2. **Write a member bio** — paste hometown/major/fun fact → 2-sentence bio in team voice.
-3. **Performance recap** — paste event details + photos → recap + caption.
-
-Optional later: an in-portal "draft this for me" button next to bios, announcements, recaps.
-
-### 12.3 Inquiry triage
-
-When a general inquiry comes in, AI checks whether it maps to an FAQ entry. If high confidence: auto-reply with a tailored response linking the FAQ. If low confidence: generic auto-reply + flag for human.
+If we later decide we *want* AI-generated email drafts (e.g., for non-standard responses), we can add a single "✨ Draft with AI" button on a draft screen that overrides the template path. Easy to add later, hard to take away once shipped — so we ship without it.
 
 ---
 
@@ -513,11 +598,10 @@ Now ~6–8 weeks of focused work. Each phase is shippable on its own; deliver va
 
 ### Phase 0 — Foundation (3–4 days)
 - Repo + Next.js scaffold + Tailwind + shadcn/ui + Drizzle/Prisma.
-- Neon Postgres project; schema migrations.
+- Supabase project: Postgres schema, Auth (Google OAuth, TAMU-restricted), Storage buckets.
 - Vercel project with both domains attached.
-- NextAuth + Google OAuth + TAMU domain restriction.
-- Bootstrap officer whitelist.
-- CI: Vercel previews per PR with branched DB.
+- Bootstrap officer whitelist; first-login pending-approval flow.
+- CI: Vercel previews per PR with Supabase branches.
 
 ### Phase 1 — Public site shell + design system (4–5 days)
 - Tailwind theme, typography, component library.
@@ -536,12 +620,14 @@ Now ~6–8 weeks of focused work. Each phase is shippable on its own; deliver va
 - Resend auto-replies (urgency-aware copy).
 - Officer notifications in portal.
 
-### Phase 4 — Performance management + weekly survey (5–7 days)
+### Phase 4 — Performance management + weekly survey + drive-time (6–8 days)
 - Performance Management tab end-to-end.
 - Review gate, status transitions, per-request overrides.
+- Google Places autocomplete on intake form + Distance Matrix call to compute drive time + officer overrides.
+- Email templates table + admin UI to edit them.
 - Weekly Vercel cron computes inclusion, sends consolidated emails.
-- Member RSVP page (token-based, also accessible logged-in).
-- Threshold check + AI email draft + Gmail API integration.
+- Member RSVP page (token-based, also accessible logged-in) showing real availability windows.
+- Threshold check + templated email draft inserted into officer Gmail via Gmail API.
 
 ### Phase 5 — Lessons management + scheduling (4–5 days)
 - Public sessions: schedule semester ahead, visibility toggle, publish_at.
@@ -553,8 +639,9 @@ Now ~6–8 weeks of focused work. Each phase is shippable on its own; deliver va
 - Per-member iCal feed.
 - Monday weekly digest cron.
 
-### Phase 7 — Member resources (3 days)
-- Constitution viewer + versioning.
+### Phase 7 — Resources, Move Library, Alumni (5–6 days)
+- Resources tab: file uploads to Supabase Storage, categories, visibility rules. Constitution PDF lands here.
+- **Move Library:** moves CRUD with multi-video support, public-safe toggle, filters/search. Alumni contribution submission flow + officer review queue.
 - Alumni directory + self-registration + verification flow.
 
 ### Phase 8 — `/watch` + homepage polish (1–2 days)
@@ -582,18 +669,17 @@ Now ~6–8 weeks of focused work. Each phase is shippable on its own; deliver va
 | Service | Tier | Monthly |
 |---|---|---|
 | Vercel | Pro (likely needed for the portal + cron + functions) | $20 |
-| Neon Postgres | Free tier (3 GB, 100 hr compute/mo) — pay $19 if we outgrow | $0–$19 |
-| Vercel Blob | First 1 GB free | $0 |
+| Supabase | Free tier (500 MB DB, 1 GB storage, 50K MAU) — pay $25 if we outgrow | $0–$25 |
 | Upstash Redis | Free tier | $0 |
 | Resend | Free 3k/mo, $20 for 50k | $0–$20 |
 | Gmail API | Free | $0 |
 | Google Calendar API | Free | $0 |
+| Google Maps Platform (Places + Distance Matrix) | Pay-as-you-go; cached results | <$1 |
 | Cloudflare Turnstile | Free | $0 |
-| Claude API (drafts + FAQ triage) | Pay-as-you-go | ~$2–$10 |
 | Domain renewal | Existing | ~$1 |
-| **Total ongoing** | | **~$23–$70/mo** |
+| **Total ongoing** | | **~$22–$67/mo** |
 
-Realistic baseline: **~$25–$30/mo**. Worst case at scale: ~$70/mo. Big jump from v2 but justified by the operational leverage.
+Realistic baseline: **~$22/mo**. Worst case at scale: ~$67/mo. Most of that is Vercel Pro; everything else stays free for AW's volume.
 
 ---
 
@@ -624,7 +710,7 @@ Realistic baseline: **~$25–$30/mo**. Worst case at scale: ~$70/mo. Big jump fr
 4. **Weekly survey defaults.** Day/time for auto-send? Default polling window? Default response deadline?
 5. **Urgency policy.** Does "Quick answer needed" bump into the *next* survey regardless of day-of-week, or just shorten the response deadline?
 6. **Weekly digest day/time.** Monday 8 AM CT a good default?
-7. **Constitution format.** Markdown rendered in-app (with version diffs) or PDF embed?
+7. **Move Library policy.** Who decides which moves are `public_safe`? Who reviews alumni contributions — captain, president, a designated "Library officer"? Should alumni see videos for non-public-safe moves they personally know, or always just metadata?
 8. **Alumni verification.** Who confirms an alumni signup is legit — president? A dedicated alumni officer? Match against members table?
 9. **Auth domain.** Restrict to `@tamu.edu` only, or also allow `@gmail.com` for alumni who've graduated and lost their TAMU email?
 10. **Flywire URL stability.** Do public-lesson signup URLs change every semester?
@@ -649,11 +735,14 @@ Realistic baseline: **~$25–$30/mo**. Worst case at scale: ~$70/mo. Big jump fr
 
 **Team portal:**
 - [ ] Officers can sign in with Google (TAMU domain restricted); president approves new members.
-- [ ] Performance Management: review gate works, weekly survey auto-sends on schedule, per-request overrides work, confirmation/decline drafts land in officer Gmail.
-- [ ] Lessons Management: a semester of public sessions can be scheduled in advance and published on a chosen date; private lesson workflow produces quote drafts.
+- [ ] Performance Management: review gate works, weekly survey auto-sends on schedule, per-request overrides work, **drive time auto-computed and shown to members in real availability windows**, templated confirmation/decline drafts land in officer Gmail.
+- [ ] Lessons Management: a semester of public sessions can be scheduled in advance and published on a chosen date; private lesson workflow produces templated quote drafts.
 - [ ] Members CRUD with photo uploads.
 - [ ] Site Content tab: officers can update homepage, FAQ, sponsors, videos, tryout cycle without code.
-- [ ] Constitution and alumni directory visible to authenticated members.
+- [ ] **Email templates** are editable in Settings; default variants ship with the system.
+- [ ] **Resources** tab: constitution PDF + other team files uploadable, with visibility controls.
+- [ ] **Move Library**: at least 5 seed moves published; alumni contribution flow works end-to-end.
+- [ ] Alumni directory visible to authenticated members.
 
 **Calendar & comms:**
 - [ ] Confirmed performances and active lessons appear in the shared Google Calendar with attendees.
