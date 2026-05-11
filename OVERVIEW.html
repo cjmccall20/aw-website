@@ -1,0 +1,991 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aggie Wranglers — Website Redesign Overview</title>
+<style>
+  :root {
+    --bg: #FAF7F2;
+    --bg-card: #FFFFFF;
+    --bg-soft: #F2EBE0;
+    --bg-deep: #2A1414;
+    --ink: #1F1A17;
+    --ink-soft: #5C544E;
+    --ink-faint: #8C857F;
+    --line: #E8E0D5;
+    --line-strong: #D6CABA;
+    --accent: #5A1F1F;
+    --accent-soft: #8B3A3A;
+    --accent-pale: #F4E8E4;
+    --gold: #B89B5C;
+    --green: #4A6B3F;
+    --green-pale: #E9F0E2;
+    --amber: #B57B1F;
+    --amber-pale: #FBF1DD;
+    --max: 920px;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.65;
+    font-size: 17px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-pale); transition: border-color .15s ease; }
+  a:hover { border-color: var(--accent); }
+
+  /* Layout */
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 0 28px; }
+  section { padding: 64px 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: 0; }
+
+  /* Sticky nav */
+  nav.top {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(250, 247, 242, 0.94);
+    backdrop-filter: saturate(140%) blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  nav.top .wrap { display: flex; align-items: center; gap: 24px; height: 56px; overflow-x: auto; }
+  nav.top a {
+    color: var(--ink-soft);
+    border-bottom: 0;
+    font-size: 14px;
+    white-space: nowrap;
+    padding: 6px 0;
+  }
+  nav.top a:hover { color: var(--accent); }
+  nav.top .brand {
+    font-family: var(--serif);
+    font-weight: 600;
+    color: var(--accent);
+    font-size: 16px;
+    letter-spacing: 0.01em;
+    margin-right: 8px;
+  }
+
+  /* Hero */
+  header.hero {
+    background: linear-gradient(180deg, #F2EBE0 0%, var(--bg) 100%);
+    padding: 88px 0 64px;
+    border-bottom: 1px solid var(--line);
+  }
+  header.hero .eyebrow {
+    color: var(--accent);
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 18px;
+  }
+  header.hero h1 {
+    font-family: var(--serif);
+    font-size: 52px;
+    line-height: 1.08;
+    margin: 0 0 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header.hero .lede {
+    font-size: 21px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    max-width: 720px;
+    margin: 0 0 28px;
+  }
+  header.hero .meta {
+    display: flex; gap: 28px; flex-wrap: wrap;
+    color: var(--ink-faint); font-size: 14px;
+  }
+  header.hero .meta span strong { color: var(--ink-soft); font-weight: 600; }
+
+  /* Headings */
+  h2 {
+    font-family: var(--serif);
+    font-size: 34px;
+    line-height: 1.15;
+    margin: 0 0 14px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  h2 .num {
+    display: inline-block;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    background: var(--accent-pale);
+    padding: 4px 10px;
+    border-radius: 999px;
+    vertical-align: middle;
+    margin-right: 14px;
+    transform: translateY(-4px);
+  }
+  h3 {
+    font-family: var(--serif);
+    font-size: 22px;
+    margin: 32px 0 10px;
+    font-weight: 600;
+  }
+  .section-intro {
+    font-size: 18px;
+    color: var(--ink-soft);
+    max-width: 720px;
+    margin: 0 0 32px;
+  }
+
+  p { margin: 0 0 16px; }
+  strong { color: var(--ink); font-weight: 600; }
+  em { color: var(--accent-soft); font-style: italic; }
+
+  /* Cards & grids */
+  .grid { display: grid; gap: 20px; }
+  .grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 760px) {
+    .grid.cols-2, .grid.cols-3, .grid.cols-4 { grid-template-columns: 1fr; }
+    header.hero h1 { font-size: 38px; }
+    header.hero .lede { font-size: 18px; }
+    h2 { font-size: 28px; }
+    section { padding: 48px 0; }
+  }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 24px;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .card h3 { margin-top: 0; }
+  .card .tag {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-pale);
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-bottom: 14px;
+  }
+  .card.feature { border-left: 3px solid var(--accent); }
+  .card p:last-child { margin-bottom: 0; }
+  .card ul { margin: 8px 0 0; padding-left: 20px; }
+  .card ul li { margin-bottom: 6px; color: var(--ink-soft); }
+  .card ul li strong { color: var(--ink); }
+
+  /* Two-surface block */
+  .surfaces { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .surfaces .surface {
+    border-radius: 14px;
+    padding: 28px;
+    position: relative;
+  }
+  .surfaces .surface.public {
+    background: linear-gradient(135deg, #FFFFFF 0%, var(--bg-soft) 100%);
+    border: 1px solid var(--line);
+  }
+  .surfaces .surface.portal {
+    background: linear-gradient(135deg, var(--bg-deep) 0%, #4A2424 100%);
+    color: #F5EDE3;
+  }
+  .surfaces .surface.portal h3,
+  .surfaces .surface.portal strong { color: #FFFFFF; }
+  .surfaces .surface.portal p { color: #E8DDD0; }
+  .surfaces .surface.portal .tag { background: rgba(255,255,255,0.12); color: #F5EDE3; }
+  .surfaces .surface.portal ul li { color: #E8DDD0; }
+  .surfaces .surface.portal ul li strong { color: #FFFFFF; }
+  .surfaces h3 { margin: 0 0 4px; font-size: 24px; }
+  .surfaces .url {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    color: var(--ink-faint);
+    margin-bottom: 18px;
+  }
+  .surfaces .portal .url { color: rgba(255,255,255,0.6); }
+  @media (max-width: 760px) {
+    .surfaces { grid-template-columns: 1fr; }
+  }
+
+  /* Tabs grid (the 12 portal tabs) */
+  .tabs-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 760px) {
+    .tabs-grid { grid-template-columns: 1fr; }
+  }
+  .tab-card {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .tab-card .num {
+    display: inline-block;
+    width: 26px; height: 26px;
+    line-height: 26px;
+    text-align: center;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    margin-right: 10px;
+    vertical-align: middle;
+  }
+  .tab-card .tab-name {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 17px;
+    vertical-align: middle;
+  }
+  .tab-card p {
+    margin: 10px 0 0;
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+  }
+
+  /* Lifecycle flow */
+  .flow {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin: 28px 0 16px;
+  }
+  @media (max-width: 900px) {
+    .flow { grid-template-columns: repeat(2, 1fr); }
+  }
+  .flow .step {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+    position: relative;
+  }
+  .flow .step .step-num {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .flow .step .step-title {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+  .flow .step .step-desc {
+    font-size: 13px;
+    color: var(--ink-soft);
+    line-height: 1.45;
+  }
+  .flow .step.officer { border-color: var(--accent); border-width: 2px; }
+  .flow .step.officer .step-num { color: var(--accent); }
+  .flow .step.officer::after {
+    content: "officer";
+    position: absolute;
+    top: -8px; right: 10px;
+    background: var(--accent);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+
+  /* Scenario callout */
+  .callout {
+    background: var(--accent-pale);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 10px 10px 0;
+    padding: 22px 26px;
+    margin: 24px 0;
+  }
+  .callout .label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .callout p { color: var(--ink); }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout.green { background: var(--green-pale); border-color: var(--green); }
+  .callout.green .label { color: var(--green); }
+  .callout.amber { background: var(--amber-pale); border-color: var(--amber); }
+  .callout.amber .label { color: var(--amber); }
+
+  /* Timeline */
+  .timeline { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }
+  .timeline .phase {
+    display: grid;
+    grid-template-columns: 80px 1fr 110px;
+    gap: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 20px;
+    align-items: center;
+  }
+  @media (max-width: 760px) {
+    .timeline .phase { grid-template-columns: 60px 1fr; }
+    .timeline .phase .duration { grid-column: 1 / -1; text-align: left; padding-left: 80px; margin-top: -8px; }
+  }
+  .timeline .phase .ph-num {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .timeline .phase .ph-num small {
+    display: block;
+    font-family: var(--sans);
+    font-size: 10px;
+    color: var(--ink-faint);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .timeline .phase .ph-body h4 {
+    font-family: var(--serif);
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .timeline .phase .ph-body p {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .timeline .phase .duration {
+    text-align: right;
+    font-size: 13px;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Comparison: now vs new */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); margin: 20px 0; }
+  @media (max-width: 760px) { .compare { grid-template-columns: 1fr; } }
+  .compare > div { padding: 22px 24px; }
+  .compare .now { background: #F5EFE6; }
+  .compare .new { background: var(--accent-pale); border-left: 1px solid var(--line); }
+  @media (max-width: 760px) { .compare .new { border-left: 0; border-top: 1px solid var(--line); } }
+  .compare h4 {
+    margin: 0 0 12px;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .compare .new h4 { color: var(--accent); }
+  .compare p { font-size: 15px; color: var(--ink-soft); }
+  .compare p:last-child { margin-bottom: 0; }
+
+  /* Question list */
+  .questions { display: flex; flex-direction: column; gap: 14px; margin-top: 24px; }
+  .question {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 22px;
+  }
+  .question .q-num {
+    display: inline-block;
+    width: 28px; height: 28px;
+    line-height: 28px;
+    text-align: center;
+    border-radius: 50%;
+    background: var(--bg-soft);
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 13px;
+    margin-right: 12px;
+    vertical-align: middle;
+  }
+  .question .q-title {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 17px;
+  }
+  .question p {
+    margin: 10px 0 0;
+    color: var(--ink-soft);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  /* Future list */
+  .future-list {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 760px) { .future-list { grid-template-columns: 1fr; } }
+  .future-list li {
+    padding: 14px 16px;
+    background: var(--bg-card);
+    border: 1px dashed var(--line-strong);
+    border-radius: 8px;
+    color: var(--ink-soft);
+    font-size: 15px;
+  }
+  .future-list li strong { color: var(--ink); display: block; margin-bottom: 4px; font-size: 15px; }
+
+  /* Footer */
+  footer.foot {
+    background: var(--bg-deep);
+    color: #D9CDBE;
+    padding: 56px 0 48px;
+    text-align: center;
+  }
+  footer.foot h2 { color: white; font-size: 28px; margin-bottom: 12px; }
+  footer.foot p { color: #B8A892; max-width: 560px; margin: 0 auto 16px; font-size: 16px; }
+  footer.foot .small { font-size: 13px; color: #8C7D6B; margin-top: 28px; }
+
+  /* Utility */
+  .lede-2 { font-size: 17px; color: var(--ink-soft); max-width: 740px; }
+  .pill {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-right: 6px;
+  }
+  .pill.now { background: var(--green-pale); color: var(--green); }
+  .pill.later { background: var(--amber-pale); color: var(--amber); }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-top: 32px;
+  }
+  @media (max-width: 760px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+  }
+  .stat .num {
+    font-family: var(--serif);
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .stat .label {
+    font-size: 12px;
+    color: var(--ink-soft);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  /* The CRM scenario */
+  .scenario {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 28px;
+    margin-top: 24px;
+  }
+  .scenario .who {
+    font-family: var(--serif);
+    font-weight: 600;
+    color: var(--accent);
+    margin-top: 18px;
+    margin-bottom: 4px;
+  }
+  .scenario .who:first-child { margin-top: 0; }
+  .scenario p { font-size: 15.5px; color: var(--ink-soft); margin-bottom: 0; }
+  .scenario .quote { font-style: italic; color: var(--ink); }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="wrap">
+    <span class="brand">AW Redesign</span>
+    <a href="#overview">Overview</a>
+    <a href="#public">Public site</a>
+    <a href="#portal">Team portal</a>
+    <a href="#workflow">How it flows</a>
+    <a href="#memory">Memory</a>
+    <a href="#calendar">Calendar</a>
+    <a href="#timeline">Timeline</a>
+    <a href="#questions">Your input</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Plain-English Overview · For team review</div>
+    <h1>A new website + a back-office that runs itself.</h1>
+    <p class="lede">
+      We're replacing the current Wix site with two things that work together: a polished public site that gets people to sign up, request, and watch — and a team portal that handles the actual operational life of the Wranglers (performance requests, scheduling, member roster, institutional memory).
+    </p>
+    <div class="meta">
+      <span><strong>Read time</strong> · about 10 minutes</span>
+      <span><strong>Audience</strong> · officers, members, alumni — non-technical welcome</span>
+      <span><strong>Status</strong> · plan locked, build not yet started</span>
+    </div>
+  </div>
+</header>
+
+<section id="overview">
+  <div class="wrap">
+    <h2><span class="num">01</span>The big idea</h2>
+    <p class="section-intro">
+      Two surfaces, one shared brain. Anything an officer changes in the portal — a new lesson session, a sponsor logo, a confirmed performance — shows up on the public site immediately. No more "the lessons page is two months stale" problem.
+    </p>
+
+    <div class="surfaces">
+      <div class="surface public">
+        <span class="tag">Public</span>
+        <h3>The public site</h3>
+        <div class="url">aggiewranglers.com</div>
+        <p>What visitors see. Designed around the four things people come here to do, plus a real <strong>watch</strong> destination for the music videos, performances, and behind-the-scenes content that prove the team is doing serious work.</p>
+        <ul>
+          <li>Mobile-first, fast, on-brand</li>
+          <li>Every legacy URL preserved (SEO survives the move)</li>
+          <li>Always-current schedule, sponsors, and roster</li>
+          <li>Four forms feed the team's inbox</li>
+        </ul>
+      </div>
+
+      <div class="surface portal">
+        <span class="tag">Team only</span>
+        <h3>The team portal</h3>
+        <div class="url">team.aggiewranglers.com</div>
+        <p>The officers' workspace. Sign in once with your TAMU email (or your Outlook account, or a magic link). What you can see and do depends on your role — president sees everything, members see their schedule and own profile.</p>
+        <ul>
+          <li>Performance requests, intake to confirmation</li>
+          <li>Lesson scheduling for the whole semester</li>
+          <li>Roster, alumni directory, move library</li>
+          <li>Every email the team has ever sent, searchable by contact</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="num">2</div><div class="label">Surfaces</div></div>
+      <div class="stat"><div class="num">12</div><div class="label">Portal tabs</div></div>
+      <div class="stat"><div class="num">~7 wks</div><div class="label">Build time</div></div>
+      <div class="stat"><div class="num">$15/yr</div><div class="label">Total cost</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="public">
+  <div class="wrap">
+    <h2><span class="num">02</span>The public site</h2>
+    <p class="section-intro">
+      Designed around the four things visitors actually come here to do — in priority order. Everything else supports those four paths.
+    </p>
+
+    <div class="grid cols-2">
+      <div class="card feature">
+        <span class="tag">Path 1</span>
+        <h3>Sign up for public lessons</h3>
+        <p>The biggest CTA on the homepage. The lessons page shows the current semester's classes with always-fresh dates and a one-click signup link. Officers schedule the whole semester in advance and flip sessions live when they're ready — no more stale 2/15–3/4 dates lingering for months.</p>
+      </div>
+
+      <div class="card feature">
+        <span class="tag">Path 2</span>
+        <h3>Get hyped for tryouts</h3>
+        <p>Clear info on what tryouts look like, when they are, who can try out, and how prep classes work. A "tryouts open!" badge lights up the homepage during the active window and goes dark the rest of the year — automatically.</p>
+      </div>
+
+      <div class="card feature">
+        <span class="tag">Path 3</span>
+        <h3>Request a performance</h3>
+        <p>A real intake form, not a tutorial video. Asks for venue (with Google address autocomplete), time, audience size, and a couple of judgment questions. The team gets an instant auto-reply and the request appears in the portal for the PR officer.</p>
+      </div>
+
+      <div class="card feature">
+        <span class="tag">Path 4</span>
+        <h3>Request a private lesson</h3>
+        <p>For weddings, corporate events, and individuals who want one-on-one instruction. Same intake feel as the performance form, routes to the lessons officer.</p>
+      </div>
+    </div>
+
+    <h3 style="margin-top:44px;">Plus a real /watch destination</h3>
+    <p class="lede-2">
+      The team's video work — Midland's <em>Burnout</em>, Randy Rogers' <em>I'll Never Get Over You</em>, Ella Langley's <em>Choosin' Texas</em>, plus full live routines and behind-the-scenes content — gets a dedicated home. Three sections, all reorderable by the webmaster from inside the portal. Every video card has a "want to dance like this?" link straight to public lessons.
+    </p>
+
+    <h3 style="margin-top:32px;">Every legacy page still works</h3>
+    <p class="lede-2">
+      Meet the Team, History, Our Building, FAQ, Alumni, Banquet, Merchandise, Sponsorships — all preserved at their existing URLs so the team's SEO equity transfers cleanly to the new site. Merchandise still links out to the existing store; banquet stays at <code>/banquet</code> year-round and gets updated annually.
+    </p>
+  </div>
+</section>
+
+<section id="portal">
+  <div class="wrap">
+    <h2><span class="num">03</span>The team portal — 12 areas</h2>
+    <p class="section-intro">
+      Officers sign in with their TAMU Gmail, their team Outlook account, or a magic-link email — whichever is easiest. What they see depends on their role. Members see a personal dashboard and their assignments. Alumni get the directory and resources. Below: what each area actually does.
+    </p>
+
+    <div class="tabs-grid">
+      <div class="tab-card"><span class="num">1</span><span class="tab-name">Dashboard</span><p>Your week at a glance: where you're expected, surveys you owe a response to, action items for your role.</p></div>
+      <div class="tab-card"><span class="num">2</span><span class="tab-name">Performance Management</span><p>Every performance request, from new lead to confirmed booking. The PR officer's command center.</p></div>
+      <div class="tab-card"><span class="num">3</span><span class="tab-name">Lessons Management</span><p>Schedule a whole semester of public sessions, plan the private-lesson queue, manage the instructor pool.</p></div>
+      <div class="tab-card"><span class="num">4</span><span class="tab-name">Contacts</span><p>Every requester, client, and lead the team has ever talked to — with full history attached. The institutional-memory tab.</p></div>
+      <div class="tab-card"><span class="num">5</span><span class="tab-name">Email</span><p>Compose and send from inside the portal. Every email is automatically attached to its contact for future officers to find.</p></div>
+      <div class="tab-card"><span class="num">6</span><span class="tab-name">Members</span><p>Roster CRUD: name, photo, partner, role, status. Mark someone graduated and the alumni profile pre-fills itself.</p></div>
+      <div class="tab-card"><span class="num">7</span><span class="tab-name">Site Content</span><p>Edit homepage, FAQ, sponsors, videos, tryout dates, banquet info — without touching code.</p></div>
+      <div class="tab-card"><span class="num">8</span><span class="tab-name">Team Calendar</span><p>Performances, lessons, tryouts, ad-hoc team events. Every member can subscribe to a personal feed that auto-syncs.</p></div>
+      <div class="tab-card"><span class="num">9</span><span class="tab-name">Resources</span><p>Constitution, contracts, choreography notes, sponsor decks — uploaded once, available to whoever should see them.</p></div>
+      <div class="tab-card"><span class="num">10</span><span class="tab-name">Move Library</span><p>A catalog of every jitt and stunt move the team knows, with links to the team's private YouTube videos.</p></div>
+      <div class="tab-card"><span class="num">11</span><span class="tab-name">Alumni Directory</span><p>Searchable by grad year and current city. Alumni manage their own profile and contact preferences.</p></div>
+      <div class="tab-card"><span class="num">12</span><span class="tab-name">Settings</span><p>Defaults, role assignments, email templates, calendar feed tokens. Mostly president and admin.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="workflow">
+  <div class="wrap">
+    <h2><span class="num">04</span>How a performance request flows</h2>
+    <p class="section-intro">
+      This is the marquee workflow — and the one that most needs to feel right. Read this as a single continuous story: from "someone fills out the form" to "the team shows up at the venue." <strong>Nothing leaves the portal as an email to the requester without an officer hitting Send.</strong>
+    </p>
+
+    <div class="flow">
+      <div class="step">
+        <div class="step-num">Step 1</div>
+        <div class="step-title">Request comes in</div>
+        <div class="step-desc">Form on the public site. Auto-reply sent ("we got it, expect a response within a few days").</div>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 2</div>
+        <div class="step-title">Auto-enrich</div>
+        <div class="step-desc">System computes drive time from the building to the venue and stores it on the request.</div>
+      </div>
+      <div class="step officer">
+        <div class="step-num">Step 3</div>
+        <div class="step-title">Review</div>
+        <div class="step-desc">PR officer reads it. Decline, ask for info, or approve to poll the team.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 4</div>
+        <div class="step-title">Weekly survey</div>
+        <div class="step-desc">Sunday 6 PM: members get one email with all open asks; respond yes/no/maybe per gig.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">Step 5</div>
+        <div class="step-title">Window closes</div>
+        <div class="step-desc">After 3 days the portal tallies responses and shows the PR officer who said yes.</div>
+      </div>
+      <div class="step officer">
+        <div class="step-num">Step 6</div>
+        <div class="step-title">Officer decides</div>
+        <div class="step-desc">Looks at actual couples, conflicts, context. Clicks Confirm or Decline.</div>
+      </div>
+      <div class="step officer">
+        <div class="step-num">Step 7</div>
+        <div class="step-title">Compose & send</div>
+        <div class="step-desc">In-portal composer opens prefilled. Officer edits, hits send. Calendar event auto-created with the right people on it.</div>
+      </div>
+    </div>
+
+    <h3>The thing that changed: no autopilot on confirmation</h3>
+    <p class="lede-2">
+      Earlier versions of this plan had the system automatically draft a confirmation when enough couples said yes. We pulled back from that: the officer always makes the actual call. Conflicts with other gigs that night, requester history, last-minute changes — none of that is in the data, and a 5-of-8 yes vote isn't always a "go." So <strong>the portal surfaces the responses and waits for the officer.</strong>
+    </p>
+
+    <div class="callout">
+      <div class="label">What members see</div>
+      <p>Each item in the weekly survey shows the <strong>real time commitment</strong> based on the computed drive time:</p>
+      <p style="margin-top: 12px; font-style: italic; color: var(--accent-soft);">"Wedding · Sat May 23 · Brenham, TX · 1h 15m drive — you'd need to be available roughly 4:45 PM to 10:45 PM."</p>
+      <p style="margin-top: 12px;">No more guessing whether a 7 PM gig in Brenham is doable. The system already did the math.</p>
+    </div>
+
+    <h3>The defaults (all changeable)</h3>
+    <div class="grid cols-4">
+      <div class="card"><strong>3 couples</strong><br><span style="color:var(--ink-soft);font-size:14px">minimum yes-votes before considering a request</span></div>
+      <div class="card"><strong>3 days</strong><br><span style="color:var(--ink-soft);font-size:14px">to respond to a weekly survey</span></div>
+      <div class="card"><strong>Sun 6 PM</strong><br><span style="color:var(--ink-soft);font-size:14px">default survey send time (CT)</span></div>
+      <div class="card"><strong>30 days</strong><br><span style="color:var(--ink-soft);font-size:14px">default polling window before a gig</span></div>
+    </div>
+    <p style="margin-top:18px; color: var(--ink-soft); font-size: 15px;">PR officer can adjust any of these globally, or per individual request if a particular booking needs a longer/shorter window. The whole weekly survey can be disabled entirely during breaks or finals.</p>
+  </div>
+</section>
+
+<section id="memory">
+  <div class="wrap">
+    <h2><span class="num">05</span>Institutional memory (the Contacts tab)</h2>
+    <p class="section-intro">
+      This might be the single feature that pays the most dividends over time — and it's invisible until you need it. <strong>Every person the team has ever interacted with becomes a contact.</strong> Every email, every request, every officer's notes about them — all of it stays attached to that contact across officer transitions, forever.
+    </p>
+
+    <div class="scenario">
+      <div class="who">Today (no system)</div>
+      <p>A Houston wedding planner emails the team in 2027 asking about availability. The current PR officer doesn't recognize the name. She might be a one-time requester, or she might be the planner who booked the team three times between 2022 and 2024 and was specific about the call-time setup. The current officer has no way to know — that knowledge graduated three years ago.</p>
+
+      <div class="who">With the new portal</div>
+      <p>The same email comes in. The PR officer types the planner's name into Contacts. Up comes:</p>
+      <p class="quote" style="margin-top: 10px;">"Booked us for the Stevens-Hill wedding (June 2022), the Reyes corporate gala (Sept 2023), and the Patel reception (May 2024). Always wants 90 minutes of call time. Pays via wire from corporate account. Florist is Stems by Sarah. Said our Midland video is what convinced their boss. Reply quickly — she's been a great client."</p>
+      <p style="margin-top: 12px;">That note was written by the 2023 PR officer. The new officer reads it in five seconds and responds like the team has been working with this planner forever — because, institutionally, they have.</p>
+    </div>
+
+    <p style="margin-top: 24px;">The same logic applies to recurring corporate clients, frequent private-lesson requesters, sponsors, alumni who keep coming back to volunteer, and anyone else worth remembering. Notes survive every officer transition.</p>
+  </div>
+</section>
+
+<section id="calendar">
+  <div class="wrap">
+    <h2><span class="num">06</span>Calendar &amp; staying in the loop</h2>
+    <p class="section-intro">
+      The portal is the source of truth for every team event — confirmed performances, scheduled lessons, tryouts, rehearsals. Three ways to see what's coming.
+    </p>
+
+    <div class="grid cols-3">
+      <div class="card">
+        <span class="tag">In the portal</span>
+        <h3>Native calendar</h3>
+        <p>Month, week, or agenda view inside the portal. Filter to just your events. Color-coded by event type. RSVP inline.</p>
+      </div>
+      <div class="card">
+        <span class="tag">On your phone</span>
+        <h3>Personal iCal feed</h3>
+        <p>One link. Subscribe once in Apple, Google, or Outlook calendar — every event you're assigned to shows up there automatically and stays in sync. Forever.</p>
+      </div>
+      <div class="card">
+        <span class="tag">In your inbox</span>
+        <h3>Monday digest</h3>
+        <p>Every Monday at 8 AM you get one email: "here's where you're expected this week." Wedding Saturday, CW1 class Wednesday, call times included.</p>
+      </div>
+    </div>
+
+    <div class="callout green">
+      <div class="label">Coming later (not v1)</div>
+      <p>Two-way sync with Outlook calendar and Google Calendar (so confirmed performances show up in your work calendar without an iCal subscription, and you can RSVP from your phone calendar app). Layered on after launch if there's real demand.</p>
+    </div>
+  </div>
+</section>
+
+<section id="email">
+  <div class="wrap">
+    <h2><span class="num">07</span>How email works</h2>
+    <p class="section-intro">
+      Right now: confirmation emails, declines, follow-ups all live in whoever happened to be the PR officer's personal Gmail. When they graduate, the institutional record graduates with them. The new portal fixes this by making the portal itself the email client for client-facing communication.
+    </p>
+
+    <div class="compare">
+      <div class="now">
+        <h4>Today</h4>
+        <p>Officer reads a request on the public site, opens Outlook, writes a confirmation from their personal officer email. The email lives in their inbox. Next officer takes over — that thread is gone.</p>
+      </div>
+      <div class="new">
+        <h4>With the new portal</h4>
+        <p>Officer clicks Compose Confirmation from inside the request. A template prefills with the right details (date, venue, call time). Officer edits and hits Send. The system sends from <code>performance@</code>, BCCs the team Outlook mailbox, and stores the whole exchange against the contact — visible to every future officer.</p>
+      </div>
+    </div>
+
+    <h3>Two kinds of email, two paths</h3>
+    <div class="grid cols-2">
+      <div class="card">
+        <span class="tag" style="background: var(--green-pale); color: var(--green);">Auto-sent</span>
+        <h3>The low-stakes stuff</h3>
+        <p>Form submission acknowledgments, magic-link sign-in emails, weekly survey invitations, Monday digest. All templated, all sent automatically — nothing in them needs review.</p>
+      </div>
+      <div class="card">
+        <span class="tag">Officer-composed</span>
+        <h3>The client-facing stuff</h3>
+        <p>Confirmations, declines, quotes, follow-ups. Always reviewed and sent by an officer from the in-portal composer. Templates prefill the boilerplate; the officer's edits are the personalization.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="timeline">
+  <div class="wrap">
+    <h2><span class="num">08</span>How we'll build it</h2>
+    <p class="section-intro">
+      About 7 weeks of focused build, then a <strong>single launch day</strong> — the new public site and the portal go live together. No incremental rollout; people see the new world once it's ready.
+    </p>
+
+    <div class="timeline">
+      <div class="phase">
+        <div class="ph-num">0<small>Phase</small></div>
+        <div class="ph-body"><h4>Foundation</h4><p>Set up the project, database, auth providers, email sending domain. Whitelist current officer emails so they can sign in on day one.</p></div>
+        <div class="duration">3–4 days</div>
+      </div>
+      <div class="phase">
+        <div class="ph-num">1<small>Phase</small></div>
+        <div class="ph-body"><h4>Public site shell + design system</h4><p>Every legacy page rebuilt. Photos migrated from Wix. Mobile-first, fast.</p></div>
+        <div class="duration">4–5 days</div>
+      </div>
+      <div class="phase">
+        <div class="ph-num">2<small>Phase</small></div>
+        <div class="ph-body"><h4>Portal foundation: Members + Contacts</h4><p>Sign-in works. Roster CRUD. Contacts tab — auto-creates from form submissions and supports manual entry.</p></div>
+        <div class="duration">5–6 days</div>
+      </div>
+      <div class="phase">
+        <div class="ph-num">3<small>Phase</small></div>
+        <div class="ph-body"><h4>Public forms + auto-replies</h4><p>The four forms are live, write to the portal, and trigger auto-replies attached to the right contact.</p></div>
+        <div class="duration">2 days</div>
+      </div>
+      <div class="phase">
+        <div class="ph-num">4<small>Phase</small></div>
+        <div class="ph-body"><h4>Email composer + Performance management + weekly survey</h4><p>The big one. In-portal email, full performance lifecycle, drive-time computation, member RSVP page, manual confirm/decline.</p></div>
+        <div class="duration">8–10 days</div>
+      </div>
+      <div class="phase">
+        <div class="ph-num">5<small>Phase</small></div>
+        <div class="ph-body"><h4>Lessons management</h4><p>Semester scheduling, private-lesson workflow, instructor pool.</p></div>
+        <div class="duration">4–5 days</div>
+      </div>
+      <div class="phase">
+        <div class="ph-num">6<small>Phase</small></div>
+        <div class="ph-body"><h4>Calendar + iCal feeds + Monday digest</h4><p>The portal calendar and the Monday morning "where you're expected" email.</p></div>
+        <div class="duration">3–4 days</div>
+      </div>
+      <div class="phase">
+        <div class="ph-num">7<small>Phase</small></div>
+        <div class="ph-body"><h4>Resources, Move Library, Alumni</h4><p>File library, move catalog with YouTube links, alumni directory + self-signup.</p></div>
+        <div class="duration">3–4 days</div>
+      </div>
+      <div class="phase">
+        <div class="ph-num">8<small>Phase</small></div>
+        <div class="ph-body"><h4>/watch + homepage polish</h4><p>The video destination plus final homepage tuning.</p></div>
+        <div class="duration">1–2 days</div>
+      </div>
+      <div class="phase">
+        <div class="ph-num">9<small>Phase</small></div>
+        <div class="ph-body"><h4>SEO migration + launch</h4><p>Stage everything, verify search-console, flip DNS — go live.</p></div>
+        <div class="duration">2–3 days</div>
+      </div>
+      <div class="phase">
+        <div class="ph-num">10<small>Phase</small></div>
+        <div class="ph-body"><h4>Officer handoff</h4><p>Loom walkthroughs per role, printable cheat sheets, transition docs.</p></div>
+        <div class="duration">2 days</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="future">
+  <div class="wrap">
+    <h2><span class="num">09</span>What's in v1 vs. coming later</h2>
+    <p class="section-intro">
+      A few features that would be great to have eventually are intentionally <strong>not</strong> in the launch — to keep the build focused and the launch date credible. The portal is designed so any of these can layer on later without disrupting what's already running.
+    </p>
+
+    <h3 style="margin-top: 0;">In the launch</h3>
+    <div class="grid cols-3" style="margin-top: 16px;">
+      <div class="card"><strong>Public site</strong><br><span style="color: var(--ink-soft); font-size: 14px;">All four CTAs, /watch, every legacy page</span></div>
+      <div class="card"><strong>Performance pipeline</strong><br><span style="color: var(--ink-soft); font-size: 14px;">End-to-end with drive time + manual confirm</span></div>
+      <div class="card"><strong>Lesson scheduling</strong><br><span style="color: var(--ink-soft); font-size: 14px;">Public sessions + private lessons</span></div>
+      <div class="card"><strong>Contacts + email composer</strong><br><span style="color: var(--ink-soft); font-size: 14px;">The CRM and email-thread store</span></div>
+      <div class="card"><strong>In-portal calendar + iCal</strong><br><span style="color: var(--ink-soft); font-size: 14px;">Source of truth in the portal; subscribe from anywhere</span></div>
+      <div class="card"><strong>Move Library catalog</strong><br><span style="color: var(--ink-soft); font-size: 14px;">Metadata + links to private YouTube videos</span></div>
+    </div>
+
+    <h3>Saved for after launch</h3>
+    <ul class="future-list">
+      <li><strong>SMS via Twilio</strong>Day-of reminder texts, "RSVP last call." Phone numbers are collected from day one so this can light up without re-asking everyone.</li>
+      <li><strong>Outlook + Google Calendar two-way sync</strong>For now you subscribe via iCal. Later, confirmed events can write directly into officers' work calendars.</li>
+      <li><strong>Stripe payments</strong>Public lessons stay on Flywire for now. Stripe gets integrated at the next natural pricing change.</li>
+      <li><strong>Embedded merch gallery</strong>Currently the merch page just links to the existing external store.</li>
+      <li><strong>Move Library: video uploads + alumni contributions</strong>If managing access via YouTube channel membership ever stops being good enough, we layer on a contribution queue and per-move visibility controls.</li>
+      <li><strong>Brand refresh</strong>The launch ships on a placeholder palette and typography. The full brand work (logo, name, palette, voice) is a separate workstream — when it lands, it's a config change, not a rebuild.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="questions">
+  <div class="wrap">
+    <h2><span class="num">10</span>Where we need your input</h2>
+    <p class="section-intro">
+      Most architectural decisions are locked in. What's still open is operational stuff that needs real-world answers from people who know the team. <strong>This is the most useful place for non-technical feedback.</strong>
+    </p>
+
+    <div class="questions">
+      <div class="question">
+        <span class="q-num">1</span><span class="q-title">Who is the system's point person on launch day, and who inherits it?</span>
+        <p>Someone on the current officer slate needs to own admin access. We need a successor plan for when they graduate.</p>
+      </div>
+      <div class="question">
+        <span class="q-num">2</span><span class="q-title">What's the team's primary communication channel — GroupMe, iMessage, Discord?</span>
+        <p>Not architectural, but affects the wording of the Monday digest and alert nudges. ("Hey, check the survey in GroupMe" vs. "in the Discord.")</p>
+      </div>
+      <div class="question">
+        <span class="q-num">3</span><span class="q-title">Which emails should officers send from?</span>
+        <p>Confirmations come from <code>performance@</code>? <code>bookings@</code>? <code>president@</code>? Affects how clients perceive replies. Also: do we authenticate sending on <code>wranglers.tamu.edu</code> (likely needs TAMU IT involvement) or on a team-owned domain we control directly?</p>
+      </div>
+      <div class="question">
+        <span class="q-num">4</span><span class="q-title">Bootstrap officer whitelist</span>
+        <p>We need the email addresses of the current officer slate so they can sign in immediately on launch day without going through an approval queue.</p>
+      </div>
+      <div class="question">
+        <span class="q-num">5</span><span class="q-title">Inbound mail setup</span>
+        <p>Each role mailbox needs a forwarding rule into the portal so replies from clients automatically attach to the right thread. Is there a team Office 365 admin who can set those up?</p>
+      </div>
+      <div class="question">
+        <span class="q-num">6</span><span class="q-title">Flywire signup links — same URL every semester or new one each cycle?</span>
+        <p>Determines whether the lessons officer pastes a new URL each semester or just flips an existing one back to active.</p>
+      </div>
+      <div class="question">
+        <span class="q-num">7</span><span class="q-title">YouTube channel for Move Library — who manages access?</span>
+        <p>Move videos live on the team's private YouTube channel. Alumni get access how — invitation through YouTube directly, or via a managed Google Group? Affects what we tell alumni about how to watch.</p>
+      </div>
+      <div class="question">
+        <span class="q-num">8</span><span class="q-title">Photo/video rights audit</span>
+        <p>Anything currently on the public Wix site (or in legacy archives) we shouldn't republish? Worth a quick review before we migrate the images over.</p>
+      </div>
+      <div class="question">
+        <span class="q-num">9</span><span class="q-title">Brand refresh timing</span>
+        <p>Recommended path: launch on the placeholder theme and swap in the brand refresh after. But: is there appetite to delay launch until the brand work is done? Tradeoff is "live faster but rebrand later" vs. "wait but launch with the final look."</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="foot" id="feedback">
+  <div class="wrap">
+    <h2>Feedback is welcome — and useful.</h2>
+    <p>If anything here doesn't match how the team actually works, or you've spotted a gap in the workflow, or there's a question you can answer from operational experience — we want to hear it before the build starts. Faster to change the plan than to change the system.</p>
+    <p style="margin-top: 18px;">Send notes back to whoever shared this with you, or comment directly on any section you have thoughts about.</p>
+    <p class="small">Aggie Wranglers Website Redesign · Plan v5 · This is the friendly version; the full technical plan lives in <code>PLAN.md</code>.</p>
+  </div>
+</footer>
+
+</body>
+</html>
