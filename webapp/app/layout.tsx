@@ -14,7 +14,6 @@ const fraunces = Fraunces({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-fraunces",
-  axes: ["opsz", "SOFT"],
 });
 
 const SITE_URL = "https://aggiewranglers.com";
