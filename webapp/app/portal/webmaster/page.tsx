@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { PortalShell } from "@/components/portal/portal-shell";
 import { MEMBERS, SPONSORS, VIDEOS, FAQS } from "@/lib/mock-data";
 import { initials, placeholderColor, cn } from "@/lib/utils";
@@ -18,9 +19,9 @@ export default function WebmasterPage() {
       </p>
 
       <div className="flex items-center justify-end mb-4">
-        <a href="/" target="_blank" rel="noopener noreferrer" className="btn-secondary text-sm">
+        <Link href="/" target="_blank" rel="noopener noreferrer" className="btn-secondary text-sm">
           <Eye className="h-4 w-4" /> Preview site <ExternalLink className="h-3.5 w-3.5" />
-        </a>
+        </Link>
       </div>
 
       <div className="grid lg:grid-cols-[220px_1fr] gap-6">

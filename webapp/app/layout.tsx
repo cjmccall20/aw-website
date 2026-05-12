@@ -2,7 +2,13 @@ import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Fraunces } from "next/font/google";
+import { PreviewGate } from "@/components/preview-gate";
 import "./globals.css";
+
+// The whole webapp is currently a PREVIEW deployment.
+// When it goes to production, flip IS_PREVIEW to false (or remove the gate +
+// flip robots to index/follow).
+const IS_PREVIEW = true;
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -50,11 +56,9 @@ export const metadata: Metadata = {
     creator: "@AggieWranglers",
   },
   alternates: { canonical: SITE_URL },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true, "max-image-preview": "large" },
-  },
+  robots: IS_PREVIEW
+    ? { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false, noimageindex: true } }
+    : { index: true,  follow: true,  googleBot: { index: true,  follow: true,  "max-image-preview": "large" } },
   icons: { icon: "/favicon.ico" },
 };
 
@@ -105,7 +109,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <a href="#main-content" className="skip-link">Skip to content</a>
-        {children}
+        {IS_PREVIEW ? <PreviewGate>{children}</PreviewGate> : children}
       </body>
     </html>
   );
