@@ -62,6 +62,11 @@ v6 absorbs a round of clarifications from the team that reshape several big arch
 - Individual performance history per member.
 - Confirmed performance rosters stay editable — drop-outs and additions are one click; affected members auto-notified.
 
+### Public notify-lists (new in v6)
+- **"Notify me when new lessons drop" signup** on `/public-lessons` (and similar on `/requirements` for tryouts). Public visitor enters email + optional name; stored against the relevant `notify_list`.
+- **Lessons coordinator's tab gets a "Notify the list" button.** When new sessions are scheduled and made visible, the coordinator clicks the button → in-portal campaign composer opens with a templated draft → coordinator edits → Send. Resend delivers to all confirmed subscribers in bulk with a one-click unsubscribe link in every email.
+- **This is the one exception to the "no in-portal composer" rule** — mass templated sends to a subscriber list are a different beast from personal client emails. Resend handles the mass-send mechanics (delivery, unsubscribes, bounces) properly; Outlook would just choke.
+
 ### Out of v1 scope (moved to IDEAS.md backlog)
 - **Social media management tab** (cross-posting, AI variant generation). Team can use Buffer or similar separately. Captured as a future iteration.
 - **Online courses + Coaching service** — separate workstream from website/portal v1.
@@ -345,6 +350,7 @@ The portal is structured as the tabs below. **Access to each is governed by the 
 - **Public sessions:** schedule a semester of sessions at once. Each session has `visible_to_public` toggle (default OFF) and optional `publish_at` date.
 - **Private lesson requests:** same shape as Performance Management (review gate → optional inclusion in the weekly combined availability survey → assign instructors → manual confirm via TAMU Outlook draft).
 - **Instructor pool:** which members are eligible to teach which class types. Drives inclusion in the combined Wednesday survey.
+- **Public-lessons notify list:** subscriber count + recent signups visible. **"Notify the list" button** opens an in-portal campaign composer prefilled from the `public_lessons_announcement` template (variables: new session dates, signup URL, brief description). Coordinator edits, previews, sends → Resend delivers to all confirmed subscribers from `lessons@aggiewranglers.com`. Every email includes a one-click unsubscribe link; unsubscribes honored durably.
 
 **4. Contacts (CRM)**
 - **Two contact types: people and organizations.** A sorority that books the team annually is an organization-contact with a rotating "current contact person" field; individuals are person-contacts; both link to requests independently.
@@ -595,6 +601,12 @@ Grouped by domain. All tables have `id`, `created_at`, `updated_at`.
 - **survey_runs**: `run_at`, `run_type` (`weekly_auto` / `manual`), `triggered_by_id`, `performance_request_ids[]`, `private_lesson_request_ids[]`, `member_count`, `response_count`, `response_deadline`, `notes`.
 - **survey_responses**: `survey_run_id`, `member_id`, `target_type` (`performance` / `private_lesson`), `target_id`, `available` (`yes` / `no` / `maybe`), `notes`, `responded_at`. Unique on (survey_run_id, member_id, target_type, target_id).
 
+### 6.3.5 Public notify lists
+
+- **notify_lists**: `key` (unique slug like `public_lessons` or `tryouts`), `display_name`, `description`, `from_alias` (which sending alias the announcements use, e.g., `lessons@aggiewranglers.com`), `active` (bool), `unsubscribe_secret` (random, used to sign unsubscribe URLs). Multiple lists supported; v1 ships with `public_lessons` and `tryouts`.
+- **notify_list_subscribers**: `list_id` (FK), `email` (indexed, unique per list), `first_name` (optional), `last_name` (optional), `subscribed_at`, `unsubscribed_at` (nullable; null = active subscriber), `source` (free-text — `/public-lessons signup form`, `/requirements signup form`, etc.), `ip_address` (for spam mitigation + audit). Unsubscribe is durable: once `unsubscribed_at` is set, no future send will include this row.
+- **notify_list_campaigns**: `list_id` (FK), `subject`, `body_html`, `body_text`, `composed_by_id` (user_id), `sent_at`, `recipient_count`, `bounce_count`, `unsubscribe_count_from_this_send`. History of every announcement sent — visible in the relevant officer's tab as a sent-campaigns log.
+
 ### 6.4 Email history (BCC-archive ingest)
 
 v6 has **no in-portal composer.** Officers compose in their existing TAMU Outlook. The portal observes via a BCC archive route. Threads are reconstructed from inbound webhooks.
@@ -635,6 +647,7 @@ Four public forms. Each Vercel Function writes to Postgres and triggers the auto
 | **Private lesson request** | first name, last name, email, phone, group size, preferred dates, dance type, experience, notes, urgency flag | Same contact resolution → inserts row → auto-reply sent from `lessons@aggiewranglers.com` → lessons coordinator notified |
 | **General contact** | first name, last name, email, phone (optional), subject, message | Same contact resolution → inserts `general_inquiries` → keyword-matched auto-reply (links matching FAQ entry if found, else generic) → `needs_human=TRUE` flag for officer follow-up |
 | **Newsletter signup** | email | Adds to `newsletter_subscribers` table; resolves/creates contact |
+| **Notify-list signup** | first name (optional), last name (optional), email | Embedded as a small widget on `/public-lessons` ("Get notified when new lessons drop") and `/requirements` ("Get notified about tryouts"). Inserts `notify_list_subscribers` row keyed to the right list. Auto-reply confirms subscription and explains how to unsubscribe. |
 
 Spam: Cloudflare Turnstile + per-IP rate limit (Upstash).
 
@@ -787,6 +800,47 @@ The derived availability window then drives:
 | `return_buffer_minutes` | 15 | Overnight stays: set to 0 and add a separate return event. |
 
 **Cost guardrails:** cache results per `(origin, place_id)` pair in Upstash for 30 days. Distance Matrix is ~$5 per 1,000 elements; even 200 requests/year is well under $1.
+
+### 8.5b Public notify-list announcements
+
+The mass-send flow that's the exception to "no in-portal composer." Workflow:
+
+```
+1. Public signup
+   Visitor lands on /public-lessons (or /requirements for tryouts);
+   sees a widget: "New session not on the calendar yet? Get notified
+   when it drops."
+   → Submit email + optional name
+   → notify_list_subscribers row created
+   → auto-reply sent from lessons@aggiewranglers.com confirming
+     subscription + how to unsubscribe
+
+2. New sessions get scheduled
+   Lessons coordinator schedules a new semester of sessions in the
+   Lessons Management tab, flips visible_to_public = TRUE, hits publish.
+
+3. Coordinator opens "Notify the list"
+   Button in the Lessons Management tab; shows subscriber count
+   ("248 confirmed subscribers will receive this").
+   → In-portal campaign composer opens with a templated draft:
+     subject prefilled, body prefilled with the new session dates +
+     signup URL.
+
+4. Coordinator edits + sends
+   Free-edit; preview; "Send to N subscribers" button.
+   → Resend delivers in batches to all active subscribers
+     (where unsubscribed_at IS NULL).
+   → Every email includes a one-click unsubscribe link signed with
+     the list's unsubscribe_secret.
+   → notify_list_campaigns row records the send for history.
+
+5. Unsubscribes flow through automatically
+   Recipient clicks unsubscribe link → token verified → 
+   notify_list_subscribers.unsubscribed_at set → future sends skip them.
+   No portal login required to unsubscribe.
+```
+
+**Why this is fine despite the "no portal composer" rule:** mass announcements to a permission-based subscriber list are fundamentally different from personal client emails. Outlook isn't built for sending to 250+ people at once with proper unsubscribe headers; Resend is. The campaign composer is a small, purpose-built form — pick template, edit, send. Doesn't undermine the larger principle that 1-on-1 client conversation happens in Outlook.
 
 ### 8.6 Email policy
 
@@ -951,10 +1005,11 @@ If we later decide we *want* AI-generated email drafts (e.g., for non-standard r
   - **Manual confirm / decline buttons** → open Outlook draft via `mailto:` → officer sends → BCC archive captures.
   - **Editable performance rosters** post-confirmation; notifications to affected members.
 
-### Phase 5 — Lessons management + scheduling
+### Phase 5 — Lessons management + scheduling + notify-list
 - Public sessions: schedule semester ahead, visibility toggle, `publish_at`.
 - Private lesson workflow integrated into the same Wednesday survey (merged with performance availability per member).
 - Instructor pool management.
+- **Public notify-lists** (`public_lessons` + `tryouts`): public signup widgets on `/public-lessons` and `/requirements`; subscriber CRUD in the relevant officer tabs; "Notify the list" campaign composer; Resend mass-send with unsubscribe links; campaign history log.
 
 ### Phase 6 — Google Calendar 2-way sync + weekly digest
 - Service-account Google Calendar writes for confirmed performances, lessons, tryouts, ad-hoc events.
@@ -1108,6 +1163,7 @@ What's still open after the v6 round:
 - [ ] **Editable performance rosters** post-confirmation; affected members notified.
 - [ ] **Donation interest captured on form; donation status trackable post-event** (Received / Declined / No response / Pending).
 - [ ] **Lessons Management:** semester scheduling works; private lesson workflow merged into the Wednesday survey.
+- [ ] **Public notify-list works end-to-end:** signup widget on `/public-lessons` + `/requirements`; auto-reply confirms subscription; "Notify the list" button sends a campaign; one-click unsubscribe link works; campaign history visible in the relevant officer tab.
 - [ ] Members CRUD with photo uploads; phone field captured; **personal email field on every profile; primary email auto-flips to personal on graduation**; graduation flow auto-creates draft alumni profile.
 - [ ] **Webmaster tab** lets officers update homepage, FAQ, sponsors, videos, profile cards, tryout cycle, banquet, merch link without code; dynamic profile-grid layout auto-expands as profiles are added.
 - [ ] Email templates editable in Settings; default warm + formal variants ship.
