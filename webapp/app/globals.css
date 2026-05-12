@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-page: 250 247 242;     /* cream */
+    --bg-elevated: 255 255 255;
+    --ink: 23 19 18;
+    --maroon: 80 0 0;
+  }
+
+  * { @apply border-line; }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-cream text-ink font-sans;
+    font-feature-settings: "ss01", "cv11", "cv01";
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif text-ink;
+    font-feature-settings: "ss01";
+  }
+
+  /* Selection */
+  ::selection { background: rgb(var(--maroon) / 0.18); color: rgb(var(--ink)); }
+
+  /* Focus rings */
+  :focus-visible {
+    @apply outline-none ring-2 ring-maroon-700/40 ring-offset-2 ring-offset-cream rounded;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Skip-to-content */
+  .skip-link {
+    @apply absolute -top-12 left-4 z-50 px-4 py-2 bg-maroon-700 text-white rounded-lg
+      focus:top-4 transition-all;
+  }
+}
+
+@layer components {
+  .container-content { @apply max-w-content mx-auto px-6 sm:px-8; }
+
+  /* Buttons — accessible, modern */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg
+      font-medium text-sm transition-all duration-150
+      disabled:opacity-50 disabled:pointer-events-none
+      focus-visible:ring-2 focus-visible:ring-offset-2;
+  }
+  .btn-primary {
+    @apply btn bg-maroon-700 text-white hover:bg-maroon-800
+      shadow-soft hover:shadow-lifted active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply btn bg-white text-ink border border-line-strong hover:border-ink-soft;
+  }
+  .btn-ghost {
+    @apply btn text-ink-soft hover:text-ink hover:bg-line-subtle;
+  }
+  .btn-lg { @apply px-6 py-3 text-base; }
+
+  /* Cards */
+  .card {
+    @apply bg-white border border-line rounded-xl;
+  }
+  .card-padded { @apply card p-6 sm:p-8; }
+  .card-interactive {
+    @apply card transition-all duration-200 hover:border-line-strong hover:shadow-soft;
+  }
+
+  /* Pills */
+  .pill {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
+      tracking-wide;
+  }
+  .pill-maroon { @apply pill bg-maroon-50 text-maroon-800; }
+  .pill-green  { @apply pill bg-green-50 text-green-700; }
+  .pill-amber  { @apply pill bg-amber-50 text-amber-700; }
+  .pill-line   { @apply pill bg-line-subtle text-ink-soft border border-line; }
+
+  /* Form controls */
+  .input, .textarea, .select {
+    @apply w-full px-3.5 py-2.5 rounded-lg border border-line bg-white text-sm text-ink
+      placeholder:text-ink-muted
+      focus:outline-none focus:ring-2 focus:ring-maroon-700/30 focus:border-maroon-700
+      transition-colors;
+  }
+  .textarea { @apply min-h-[120px] resize-y; }
+  .label {
+    @apply block text-xs font-semibold uppercase tracking-wider text-ink-soft mb-1.5;
+  }
+  .help-text { @apply text-xs text-ink-faint mt-1.5; }
+
+  /* Section spacing */
+  .section { @apply py-16 sm:py-20 md:py-24; }
+  .section-sm { @apply py-12 sm:py-16; }
+
+  /* Eyebrow / kicker text */
+  .eyebrow {
+    @apply inline-block text-xs font-semibold uppercase tracking-[0.18em] text-maroon-700;
+  }
+
+  /* Hero gradient */
+  .hero-gradient {
+    background: linear-gradient(180deg,
+      rgb(244 236 223 / 1) 0%,
+      rgb(250 247 242 / 1) 100%);
+  }
+
+  /* Decorative divider */
+  .divider-ornament {
+    @apply flex items-center gap-4 text-ink-faint my-8;
+  }
+  .divider-ornament::before,
+  .divider-ornament::after {
+    content: "";
+    @apply flex-1 h-px bg-line;
+  }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .text-pretty  { text-wrap: pretty; }
+
+  /* Visually hidden but accessible to screen readers */
+  .sr-only-focusable {
+    @apply sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4
+      focus:bg-white focus:px-4 focus:py-2 focus:rounded-lg focus:z-50;
+  }
+}
