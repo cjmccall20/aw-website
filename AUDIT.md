@@ -56,3 +56,14 @@ on the Aggie Wranglers and the live aggiewranglers.com. Everything in
 - `npm run lint` — no errors (2 acceptable `<img>` warnings for YouTube thumbnails; images are unoptimized in static export anyway)
 - `NODE_ENV=production npm run build` — all 40 routes export, with typecheck + lint enforced
 - Exported HTML spot-checked: Geist wired, 1984 copy, real video IDs, Flywire links, `/contact` + `/privacy` present
+
+---
+
+## Addendum — build-out (same branch, July 2026)
+
+The "wire the real backend" gap above is now half-closed: the whole app runs
+against a swappable client-side data layer (`webapp/lib/store.ts`) with every
+button, form, workflow, permission rule, and CMS editor functional, plus a
+17-test Playwright e2e suite and CI. See `webapp/README.md` (architecture +
+migration steps) and `DEMO.md` (team review script). Remaining for production:
+Supabase + Resend + Google APIs behind the store, per PLAN.md.
