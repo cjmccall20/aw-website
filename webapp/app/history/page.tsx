@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Image from "next/image";
+import { assetPath } from "@/lib/utils";
 import { SiteShell } from "@/components/site-shell";
 import { PageHeader } from "@/components/page-header";
 
@@ -16,6 +18,30 @@ export default function HistoryPage() {
         title="A history of country-western dance at Texas A&M."
         description="The Wranglers were founded to share country-western dance and Aggie spirit with the world. Four decades later — still the mission."
       />
+
+      <section className="container-content -mt-8 sm:-mt-10 relative z-10">
+        <div className="grid sm:grid-cols-3 gap-4 items-start">
+          <div className="relative sm:col-span-2 aspect-[3/2] rounded-2xl overflow-hidden shadow-lifted">
+            <Image
+              src={assetPath("/images/team-photo.jpg")}
+              alt="The current Aggie Wranglers team in front of the Texas A&M Administration Building"
+              fill sizes="(min-width: 640px) 66vw, 100vw"
+              className="object-cover"
+            />
+          </div>
+          <figure className="relative">
+            <div className="relative aspect-[4/3] rounded-2xl overflow-hidden shadow-soft">
+              <Image
+                src={assetPath("/images/history-early-years.jpg")}
+                alt="Black-and-white team photo of the Aggie Wranglers in 1987"
+                fill sizes="(min-width: 640px) 33vw, 100vw"
+                className="object-cover"
+              />
+            </div>
+            <figcaption className="mt-2 text-xs text-ink-faint">The team in 1987 — three years in.</figcaption>
+          </figure>
+        </div>
+      </section>
 
       <section className="section-sm">
         <div className="container-content max-w-prose">

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
+import { assetPath } from "@/lib/utils";
 import { SiteShell } from "@/components/site-shell";
 import { PageHeader } from "@/components/page-header";
 import { ArrowRight } from "lucide-react";
@@ -20,6 +22,26 @@ export default function PerformancesInfoPage() {
         description="What to know before requesting a performance. The short version: tell us about your event, we'll handle the rest."
       />
 
+      <section className="container-content -mt-8 sm:-mt-10 relative z-10">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="relative aspect-[16/9] rounded-2xl overflow-hidden shadow-lifted">
+            <Image
+              src={assetPath("/images/performance-swing-dance.jpg")}
+              alt="Six Wrangler couples swing dancing on a pavilion stage, skirts twirling"
+              fill sizes="(min-width: 640px) 50vw, 100vw"
+              className="object-cover"
+            />
+          </div>
+          <div className="relative aspect-[16/9] rounded-2xl overflow-hidden shadow-lifted">
+            <Image
+              src={assetPath("/images/performance-lifts-outdoor.jpg")}
+              alt="Four couples performing lifts and back-bend dips at an outdoor event"
+              fill sizes="(min-width: 640px) 50vw, 100vw"
+              className="object-cover"
+            />
+          </div>
+        </div>
+      </section>
       <section className="section-sm">
         <div className="container-content max-w-3xl space-y-12">
           <Block title="What we do">

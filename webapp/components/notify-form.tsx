@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Bell, CheckCircle2 } from "lucide-react";
+import { subscribeToNotifyList } from "@/lib/actions";
 
 interface Props {
   listKey: "public_lessons" | "tryouts";
@@ -29,8 +30,7 @@ export function NotifyForm({ listKey, heading, description, variant = "card" }: 
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // TODO: POST /api/notify-list/subscribe { list_key: listKey, email, first_name }
-    //  → creates notify_list_subscribers row, sends auto-reply confirmation
+    subscribeToNotifyList(listKey, email, firstName);
     setSubmitted(true);
   }
 

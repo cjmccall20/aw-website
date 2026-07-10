@@ -395,4 +395,54 @@ export interface ActionItem {
 export interface LongTermGoals {
   body_markdown: string;
   updated_at: ISODate;
+  updated_by_name?: string;
+}
+
+export interface LongTermGoalsRevision {
+  id: ID;
+  body_markdown: string;
+  saved_at: ISODate;
+  saved_by_name?: string;
+}
+
+// ---- General inquiries (public /contact form) ----
+export interface GeneralInquiry {
+  id: ID;
+  contact_id?: ID;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  subject: string;
+  message: string;
+  needs_human: boolean;
+  resolved_at?: ISODate;
+  created_at: ISODate;
+}
+
+// ---- Site content (Webmaster CMS) ----
+export interface SiteContent {
+  tagline: string;
+  hero_headline_top: string;
+  hero_headline_accent: string;
+  hero_subhead: string;
+  announcement_text: string;
+  announcement_link: string;
+  announcement_active: boolean;
+  mission: string;
+  merch_url: string;
+  banquet_eyebrow: string;
+  banquet_title: string;
+  banquet_body: string;
+  banquet_tickets_line: string;
+  banquet_dress_line: string;
+  banquet_contact_email: string;
+}
+
+// ---- Audit log ----
+export interface AuditEntry {
+  id: ID;
+  at: ISODate;
+  actor_name: string;
+  action: string;
 }

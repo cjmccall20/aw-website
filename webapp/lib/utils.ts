@@ -6,6 +6,15 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Prefix a /public asset path with the deploy basePath. Required because
+ * next/image with `unoptimized: true` (static export) does NOT apply basePath
+ * to string srcs — without this, images 404 under /aw-website on GH Pages.
+ */
+export function assetPath(path: string) {
+  return `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}${path}`;
+}
+
+/**
  * Parse a date input without the classic date-only pitfall: `new Date("2026-07-18")`
  * is parsed as UTC midnight, which renders as the *previous day* in US timezones.
  * Date-only strings are constructed as local dates instead.

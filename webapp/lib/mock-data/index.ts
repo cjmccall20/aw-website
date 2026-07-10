@@ -46,8 +46,13 @@ export const ALL_TABS = TABS;
 // Default permissions matrix matching PLAN.md §4.2
 function buildDefaultPermissions(): PermissionMatrixEntry[] {
   const entries: PermissionMatrixEntry[] = [];
-  const set = (s: string, t: string, a: "none" | "view" | "edit") =>
-    entries.push({ status_key: s, tab_key: t as any, access: a });
+  // Overwrite on repeat (status, tab) pairs — duplicate rows would make
+  // lookups (which take the first match) return the wrong access level.
+  const set = (s: string, t: string, a: "none" | "view" | "edit") => {
+    const existing = entries.find(e => e.status_key === s && e.tab_key === (t as PermissionMatrixEntry["tab_key"]));
+    if (existing) existing.access = a;
+    else entries.push({ status_key: s, tab_key: t as PermissionMatrixEntry["tab_key"], access: a });
+  };
 
   const ALL = TABS.map(t => t.key);
 

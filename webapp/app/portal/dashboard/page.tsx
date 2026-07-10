@@ -2,41 +2,33 @@
 
 import Link from "next/link";
 import { PortalShell } from "@/components/portal/portal-shell";
-import {
-  PERFORMANCE_REQUESTS, CALENDAR_EVENTS, ANNUAL_REMINDERS,
-  PRIVATE_LESSON_REQUESTS, CONTACTS, MEMBERS, byId,
-} from "@/lib/mock-data";
-import { getDemoUser } from "@/lib/auth";
-import { effectiveAccess } from "@/lib/mock-data";
+import { useStore, useSessionUser, accessFor, update } from "@/lib/store";
 import { formatDate, cn } from "@/lib/utils";
-import { ArrowRight, AlertTriangle, Bell, Calendar, Mail } from "lucide-react";
-import { useEffect, useState } from "react";
-import type { User } from "@/lib/types";
+import { ArrowRight, AlertTriangle, Bell, Calendar, Mail, CheckSquare } from "lucide-react";
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    setUser(getDemoUser());
-  }, []);
+  const db = useStore();
+  const user = useSessionUser();
 
   const userName = user?.name.split(" ")[0] ?? "";
   // Dashboards are personalized: only surface queues the signed-in user can actually open.
-  const canSeePerf = user ? effectiveAccess(user.status_keys, "performance_management") !== "none" : false;
-  const canSeeLessons = user ? effectiveAccess(user.status_keys, "lessons_management") !== "none" : false;
-  const canSeeContacts = user ? effectiveAccess(user.status_keys, "contacts") !== "none" : false;
-  const canSeeCalendar = user ? effectiveAccess(user.status_keys, "team_calendar") !== "none" : false;
+  const canSeePerf = user ? accessFor(db, user.status_keys, "performance_management") !== "none" : false;
+  const canSeeLessons = user ? accessFor(db, user.status_keys, "lessons_management") !== "none" : false;
+  const canSeeContacts = user ? accessFor(db, user.status_keys, "contacts") !== "none" : false;
+  const canSeeCalendar = user ? accessFor(db, user.status_keys, "team_calendar") !== "none" : false;
 
-  const myUpcoming = CALENDAR_EVENTS
+  const myUpcoming = db.calendarEvents
     .filter(e => new Date(e.start_at) > new Date())
     .sort((a, b) => a.start_at.localeCompare(b.start_at))
     .slice(0, 4);
 
-  const pollingClosed = canSeePerf ? PERFORMANCE_REQUESTS.filter(r => r.status === "polling_closed") : [];
-  const newRequests = canSeePerf ? PERFORMANCE_REQUESTS.filter(r => r.status === "new" || r.status === "under_review") : [];
-  const upcomingReminders = canSeeContacts ? ANNUAL_REMINDERS.slice(0, 2) : [];
-  const pendingPrivate = canSeeLessons ? PRIVATE_LESSON_REQUESTS.filter(r => r.status === "new").length : 0;
-  const actionCount = pollingClosed.length + newRequests.length + pendingPrivate;
+  const pollingClosed = canSeePerf ? db.performanceRequests.filter(r => r.status === "polling_closed") : [];
+  const newRequests = canSeePerf ? db.performanceRequests.filter(r => r.status === "new" || r.status === "under_review") : [];
+  const upcomingReminders = canSeeContacts ? db.annualReminders.slice(0, 2) : [];
+  const pendingPrivate = canSeeLessons ? db.privateLessonRequests.filter(r => r.status === "new").length : 0;
+  const newInquiries = canSeeContacts ? db.inquiries.filter(i => i.needs_human && !i.resolved_at).length : 0;
+  const myActionItems = db.actionItems.filter(a => !a.completed_at && a.assignee_member_id && a.assignee_member_id === user?.member_id);
+  const actionCount = pollingClosed.length + newRequests.length + pendingPrivate + newInquiries + myActionItems.length;
 
   return (
     <PortalShell tabKey="dashboard" title={`Welcome back${userName ? `, ${userName}` : ""}.`}>
@@ -56,7 +48,7 @@ export default function DashboardPage() {
                 <ActionItem
                   key={r.id}
                   severity="urgent"
-                  href={`/portal/performance-management/${r.id}`}
+                  href={`/portal/performance-management/detail?id=${r.id}`}
                   title={`Polling closed: ${r.performance_type} for ${r.organization ?? r.requester_first_name + " " + r.requester_last_name}`}
                   subtitle={`Event ${formatDate(r.event_date, { month: "short", day: "numeric" })} · ${r.venue_name}`}
                   meta="Confirm or decline"
@@ -66,7 +58,7 @@ export default function DashboardPage() {
                 <ActionItem
                   key={r.id}
                   severity={r.urgency === "quick_answer" ? "urgent" : "info"}
-                  href={`/portal/performance-management/${r.id}`}
+                  href={`/portal/performance-management/detail?id=${r.id}`}
                   title={`New request: ${r.performance_type} (${r.organization ?? r.requester_first_name + " " + r.requester_last_name})`}
                   subtitle={`Event ${formatDate(r.event_date, { month: "short", day: "numeric" })} · ${r.urgency === "quick_answer" ? "Quick answer needed" : "Review when you can"}`}
                 />
@@ -79,8 +71,44 @@ export default function DashboardPage() {
                   subtitle="Lessons Management → Private Lessons"
                 />
               )}
+              {newInquiries > 0 && (
+                <ActionItem
+                  severity="info"
+                  href="/portal/contacts"
+                  title={`${newInquiries} unresolved general ${newInquiries > 1 ? "inquiries" : "inquiry"} from the contact form`}
+                  subtitle="Contacts → Inquiries"
+                />
+              )}
             </ul>
           </section>
+
+          {/* My action items (from meeting notes) */}
+          {myActionItems.length > 0 && (
+            <section className="card-padded" data-testid="my-action-items">
+              <div className="flex items-center gap-2">
+                <CheckSquare className="h-4 w-4 text-maroon-700" />
+                <h2 className="font-serif text-xl font-semibold">Your action items</h2>
+              </div>
+              <ul className="mt-5 space-y-3">
+                {myActionItems.map(a => (
+                  <li key={a.id} className="flex items-start gap-3 text-sm">
+                    <button
+                      onClick={() => update(dbx => {
+                        const item = dbx.actionItems.find(x => x.id === a.id);
+                        if (item) item.completed_at = new Date().toISOString();
+                      }, `Completed action item: ${a.description}`)}
+                      className="mt-0.5 h-4 w-4 rounded border border-line-strong hover:border-maroon-700 flex-shrink-0"
+                      aria-label={`Mark done: ${a.description}`}
+                    />
+                    <div className="flex-1">
+                      <p className="text-ink">{a.description}</p>
+                      {a.due_date && <p className="text-xs text-ink-faint mt-0.5">Due {formatDate(a.due_date, { month: "short", day: "numeric" })}</p>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {/* Annual reminder pings */}
           {upcomingReminders.length > 0 && (
@@ -91,13 +119,13 @@ export default function DashboardPage() {
               </div>
               <ul className="mt-5 space-y-3">
                 {upcomingReminders.map(r => {
-                  const contact = byId(CONTACTS, r.contact_id);
+                  const contact = db.contacts.find(c => c.id === r.contact_id);
                   return (
                     <li key={r.id} className="flex items-start gap-3 text-sm">
                       <span className="pill-amber flex-shrink-0">Month {r.reminder_month}</span>
                       <div className="flex-1">
                         <p className="text-ink">
-                          {r.note} · <Link href={`/portal/contacts/${r.contact_id}`} className="text-maroon-700 hover:underline">{contact?.name}</Link>
+                          {r.note} · <Link href={`/portal/contacts/detail?id=${r.contact_id}`} className="text-maroon-700 hover:underline">{contact?.name}</Link>
                         </p>
                         <p className="text-xs text-ink-faint mt-0.5">Lead time: {r.lead_time_weeks} weeks</p>
                       </div>

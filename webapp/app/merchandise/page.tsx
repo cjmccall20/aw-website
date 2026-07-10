@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import { SiteShell } from "@/components/site-shell";
 import { PageHeader } from "@/components/page-header";
+import { MerchStoreLink } from "./view";
 
 export const metadata: Metadata = {
   title: "Merchandise",
   description: "Aggie Wranglers official merch — shirts, hats, and more.",
   alternates: { canonical: "/merchandise" },
 };
-
-const STORE_URL = "https://tamu.estore.flywire.com";
 
 export default function MerchPage() {
   return (
@@ -23,9 +22,7 @@ export default function MerchPage() {
           <p className="text-lg text-ink-soft">
             Merch is sold through the university&apos;s official Marketplace store. Click through to browse.
           </p>
-          <a href={STORE_URL} target="_blank" rel="noopener noreferrer" className="mt-8 btn-primary btn-lg inline-flex">
-            Visit the merch store →
-          </a>
+          <MerchStoreLink />
           <p className="mt-8 text-sm text-ink-faint">
             Proceeds support the team&apos;s operating budget and travel.
           </p>
