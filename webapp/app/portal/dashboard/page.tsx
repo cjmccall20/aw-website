@@ -7,27 +7,36 @@ import {
   PRIVATE_LESSON_REQUESTS, CONTACTS, MEMBERS, byId,
 } from "@/lib/mock-data";
 import { getDemoUser } from "@/lib/auth";
+import { effectiveAccess } from "@/lib/mock-data";
 import { formatDate, cn } from "@/lib/utils";
 import { ArrowRight, AlertTriangle, Bell, Calendar, Mail } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { User } from "@/lib/types";
 
 export default function DashboardPage() {
-  const [userName, setUserName] = useState<string>("");
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const u = getDemoUser();
-    if (u) setUserName(u.name.split(" ")[0]);
+    setUser(getDemoUser());
   }, []);
+
+  const userName = user?.name.split(" ")[0] ?? "";
+  // Dashboards are personalized: only surface queues the signed-in user can actually open.
+  const canSeePerf = user ? effectiveAccess(user.status_keys, "performance_management") !== "none" : false;
+  const canSeeLessons = user ? effectiveAccess(user.status_keys, "lessons_management") !== "none" : false;
+  const canSeeContacts = user ? effectiveAccess(user.status_keys, "contacts") !== "none" : false;
+  const canSeeCalendar = user ? effectiveAccess(user.status_keys, "team_calendar") !== "none" : false;
 
   const myUpcoming = CALENDAR_EVENTS
     .filter(e => new Date(e.start_at) > new Date())
     .sort((a, b) => a.start_at.localeCompare(b.start_at))
     .slice(0, 4);
 
-  const pollingClosed = PERFORMANCE_REQUESTS.filter(r => r.status === "polling_closed");
-  const newRequests = PERFORMANCE_REQUESTS.filter(r => r.status === "new" || r.status === "under_review");
-  const upcomingReminders = ANNUAL_REMINDERS.slice(0, 2);
-  const pendingPrivate = PRIVATE_LESSON_REQUESTS.filter(r => r.status === "new").length;
+  const pollingClosed = canSeePerf ? PERFORMANCE_REQUESTS.filter(r => r.status === "polling_closed") : [];
+  const newRequests = canSeePerf ? PERFORMANCE_REQUESTS.filter(r => r.status === "new" || r.status === "under_review") : [];
+  const upcomingReminders = canSeeContacts ? ANNUAL_REMINDERS.slice(0, 2) : [];
+  const pendingPrivate = canSeeLessons ? PRIVATE_LESSON_REQUESTS.filter(r => r.status === "new").length : 0;
+  const actionCount = pollingClosed.length + newRequests.length + pendingPrivate;
 
   return (
     <PortalShell tabKey="dashboard" title={`Welcome back${userName ? `, ${userName}` : ""}.`}>
@@ -37,9 +46,12 @@ export default function DashboardPage() {
           <section className="card-padded">
             <div className="flex items-center justify-between">
               <h2 className="font-serif text-xl font-semibold">Needs your attention</h2>
-              <span className="pill-maroon">{pollingClosed.length + newRequests.length + pendingPrivate} items</span>
+              <span className="pill-maroon">{actionCount} items</span>
             </div>
             <ul className="mt-5 divide-y divide-line">
+              {actionCount === 0 && (
+                <li className="py-3.5 text-sm text-ink-faint">Nothing waiting on you. Check the calendar for what&apos;s coming up.</li>
+              )}
               {pollingClosed.map(r => (
                 <ActionItem
                   key={r.id}
@@ -99,38 +111,42 @@ export default function DashboardPage() {
 
         {/* Sidebar: where you're expected */}
         <aside className="space-y-6">
-          <section className="card-padded">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-maroon-700" />
-              <h2 className="font-serif text-xl font-semibold">This week</h2>
-            </div>
-            <ul className="mt-5 space-y-4">
-              {myUpcoming.map(e => (
-                <li key={e.id}>
-                  <p className="text-xs uppercase tracking-wider font-semibold text-ink-faint">
-                    {formatDate(e.start_at, { weekday: "short", month: "short", day: "numeric" })}
-                  </p>
-                  <p className="mt-0.5 font-medium text-ink">{e.title}</p>
-                  {e.location_name && (
-                    <p className="text-sm text-ink-soft">{e.location_name}</p>
-                  )}
-                </li>
-              ))}
-            </ul>
-            <Link href="/portal/team-calendar" className="mt-5 btn-ghost text-sm w-full justify-center">
-              View calendar <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </section>
+          {canSeeCalendar && (
+            <section className="card-padded">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-maroon-700" />
+                <h2 className="font-serif text-xl font-semibold">Coming up</h2>
+              </div>
+              <ul className="mt-5 space-y-4">
+                {myUpcoming.map(e => (
+                  <li key={e.id}>
+                    <p className="text-xs uppercase tracking-wider font-semibold text-ink-faint">
+                      {formatDate(e.start_at, { weekday: "short", month: "short", day: "numeric" })}
+                    </p>
+                    <p className="mt-0.5 font-medium text-ink">{e.title}</p>
+                    {e.location_name && (
+                      <p className="text-sm text-ink-soft">{e.location_name}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <Link href="/portal/team-calendar" className="mt-5 btn-ghost text-sm w-full justify-center">
+                View calendar <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </section>
+          )}
 
-          <section className="card-padded bg-maroon-700 text-white">
-            <Mail className="h-4 w-4" />
-            <p className="mt-3 font-serif text-lg font-semibold">Email composer note</p>
-            <p className="mt-2 text-sm text-cream-200/85">
-              All client emails are composed in your TAMU Outlook — buttons in
-              the portal open prefilled drafts. Sent mail auto-archives to the
-              CRM via your one-time Outlook BCC rule.
-            </p>
-          </section>
+          {(canSeePerf || canSeeLessons) && (
+            <section className="card-padded bg-maroon-700 text-white">
+              <Mail className="h-4 w-4" />
+              <p className="mt-3 font-serif text-lg font-semibold">Email composer note</p>
+              <p className="mt-2 text-sm text-cream-200/85">
+                All client emails are composed in your TAMU Outlook — buttons in
+                the portal open prefilled drafts. Sent mail auto-archives to the
+                CRM via your one-time Outlook BCC rule.
+              </p>
+            </section>
+          )}
         </aside>
       </div>
     </PortalShell>

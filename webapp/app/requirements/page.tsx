@@ -10,7 +10,7 @@ import { Calendar, CheckCircle2, Sparkles } from "lucide-react";
 export const metadata: Metadata = {
   title: "Tryouts",
   description:
-    "Tryouts for the Aggie Wranglers happen every fall. Open to all Texas A&M students, no partner required. Prep lessons run free in the two weeks before tryouts.",
+    "Tryouts for the Aggie Wranglers happen every spring. Open to all Texas A&M students — you try out with a partner, and the process includes prep events, a dancing portion, and an interview.",
   alternates: { canonical: "/requirements" },
 };
 
@@ -22,7 +22,7 @@ export default function RequirementsPage() {
       <PageHeader
         eyebrow="Tryouts"
         title="Want to join the team?"
-        description="Tryouts open each fall. We bring on new members through a multi-week process that includes free prep lessons so you're not walking in cold."
+        description="Tryouts happen each spring. We bring on new members through a multi-week process — an informational meeting, mock tryouts, and the real thing in April — so you're not walking in cold."
       />
 
       <section className="section-sm">
@@ -74,9 +74,9 @@ function ActiveTryoutCard({ cycle }: { cycle: typeof TRYOUT_CYCLES[0] }) {
           </dd>
         </div>
         <div>
-          <dt className="label">Free prep lessons</dt>
+          <dt className="label">Prep events (info meeting + mock tryouts)</dt>
           <dd className="text-ink-soft">
-            {cycle.prep_lesson_dates.map(d => formatDate(d, { month: "short", day: "numeric" })).join(" · ")}
+            {cycle.prep_lesson_dates.map(d => formatDate(d, { month: "short", day: "numeric", year: "numeric" })).join(" · ")}
           </dd>
         </div>
         {cycle.eligibility_notes && (
@@ -106,10 +106,10 @@ function NoCyclesCard() {
 
 function WhatToExpect() {
   const steps = [
-    { title: "Show up to prep lessons", description: "Free, two weeks before tryouts. We teach the moves we'll evaluate so nobody walks in cold." },
-    { title: "Bring a partner — or don't", description: "You can try out solo or as a couple. We pair people up during the audition." },
-    { title: "Tryout day", description: "Several hours of structured learning + evaluation. You'll dance with multiple team members." },
-    { title: "Decisions within a week", description: "We text and email everyone who tries out, whether selected or not." },
+    { title: "Come to the informational meeting", description: "Early in the spring semester at the practice space. Meet the team, hear how the process works, ask anything." },
+    { title: "Find a partner and practice", description: "You try out as a couple. Come to public lessons and the mock tryouts — we run through exactly what we'll evaluate so nobody walks in cold." },
+    { title: "Tryout day (April)", description: "A dancing portion judged on creativity and technique, then an interview portion. We care about who you are as much as how you dance." },
+    { title: "Decisions within a week", description: "We contact everyone who tries out, whether selected or not." },
   ];
   return (
     <section>
@@ -131,7 +131,8 @@ function WhatToExpect() {
 
 function Eligibility() {
   const reqs = [
-    "Current TAMU student in good standing",
+    "Currently enrolled Texas A&M student in good standing",
+    "A tryout partner (you audition as a couple)",
     "Available for weekly practices and weekend performances",
     "Comfortable being part of a team that travels for events",
   ];

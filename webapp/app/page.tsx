@@ -3,12 +3,12 @@ import type { Metadata } from "next";
 import { ArrowRight, Sparkles, MapPin, Calendar, Quote } from "lucide-react";
 import { SiteShell } from "@/components/site-shell";
 import { PUBLIC_LESSONS, TRYOUT_CYCLES, VIDEOS, SPONSORS } from "@/lib/mock-data";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatClock } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Aggie Wranglers — Texas A&M's country-western dance team",
   description:
-    "Texas A&M's nationally recognized country-western performance team. Public lessons every week, tryouts each fall, performance bookings nationwide, and private lessons for weddings and events.",
+    "Texas A&M's premier country-western exhibition dance team. Public lessons six sessions a year, tryouts each spring, free performance bookings, and private lessons for weddings and events.",
   alternates: { canonical: "/" },
   openGraph: {
     title: "Aggie Wranglers — High Flyin', Death Defyin'",
@@ -48,9 +48,11 @@ function Hero({ hasActiveTryout }: { hasActiveTryout: boolean }) {
             <span className="text-maroon-700">death defyin&apos;.</span>
           </h1>
           <p className="mt-7 text-lg sm:text-xl text-ink-soft max-w-2xl text-pretty animate-slide-up" style={{ animationDelay: "0.05s" }}>
-            We&apos;re a nationally recognized performance team based at Texas A&amp;M.
-            We teach. We perform. We&apos;ve been in music videos with Midland,
-            Randy Rogers Band, and Ella Langley. And we&apos;d love to dance at your event.
+            Texas A&amp;M&apos;s premier country-western exhibition dance team since 1984.
+            We teach ~3,000 people a year. We perform high-speed polka and the
+            internationally famous Aggie-style jitterbug. We&apos;ve been in music
+            videos with Midland, Randy Rogers Band, and Ella Langley. And we&apos;d
+            love to dance at your event — for free.
           </p>
           <div className="mt-9 flex flex-col sm:flex-row gap-3 animate-slide-up" style={{ animationDelay: "0.1s" }}>
             <Link href="/public-lessons" className="btn-primary btn-lg">
@@ -75,8 +77,8 @@ function Hero({ hasActiveTryout }: { hasActiveTryout: boolean }) {
 
 function CTAGrid() {
   const ctas: { label: string; href: string; eyebrow: string; description: string; tone: "primary" | "default" }[] = [
-    { label: "Sign up for public lessons", href: "/public-lessons", eyebrow: "Most popular", description: "Drop-in weekly classes. No partner needed.", tone: "primary" },
-    { label: "Tryouts info",                href: "/requirements",  eyebrow: "Each fall",      description: "Join the team. Open to all TAMU students.", tone: "default" },
+    { label: "Sign up for public lessons", href: "/public-lessons", eyebrow: "Most popular", description: "4-week sessions, $60/couple. We teach ~3,000 people a year.", tone: "primary" },
+    { label: "Tryouts info",                href: "/requirements",  eyebrow: "Each spring",   description: "Join the team. Open to all TAMU students.", tone: "default" },
     { label: "Book the team",                href: "/performance-request", eyebrow: "Events", description: "Wedding, gala, festival, fundraiser — request a performance.", tone: "default" },
     { label: "Private lessons",             href: "/private-lesson-request", eyebrow: "Couples + groups", description: "Personalized instruction — first-dance, social, prep.", tone: "default" },
   ];
@@ -132,7 +134,7 @@ function NextLessonStrip({ lesson }: { lesson: typeof PUBLIC_LESSONS[0] }) {
             <p className="eyebrow">Next public class</p>
             <p className="mt-2 font-serif text-3xl font-semibold">{lesson.class_name} <span className="text-ink-faint">·</span> <span className="text-ink-soft font-medium text-2xl">{lesson.level}</span></p>
             <p className="mt-2 text-ink-soft flex items-center gap-2 flex-wrap">
-              <Calendar className="h-4 w-4 inline" /> {lesson.day}s, {lesson.start_time} - {lesson.end_time} CT
+              <Calendar className="h-4 w-4 inline" /> {lesson.day}s, {formatClock(lesson.start_time)} – {formatClock(lesson.end_time)} CT
               <span className="text-line-strong">·</span>
               <MapPin className="h-4 w-4 inline" /> Practice space, College Station
             </p>

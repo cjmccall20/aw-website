@@ -4,10 +4,12 @@ import { PortalShell } from "@/components/portal/portal-shell";
 import { MEMBERS, PERFORMANCE_REQUESTS } from "@/lib/mock-data";
 import { cn, initials, placeholderColor } from "@/lib/utils";
 
-// Mock attendance data
+// Mock attendance data. Deterministic — Math.random() in render would make the
+// server-rendered HTML disagree with the client render and break hydration.
 function attendanceFor(memberId: string) {
-  const total = 18 + (parseInt(memberId.slice(-2)) % 8); // 18-25 range
-  const made = Math.max(8, total - Math.floor(Math.random() * 7));
+  const n = parseInt(memberId.slice(-2), 10) || 0;
+  const total = 18 + (n % 8); // 18-25 range
+  const made = Math.max(8, total - ((n * 5) % 7));
   return { made, total, pct: Math.round((made / total) * 100) };
 }
 

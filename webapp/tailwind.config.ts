@@ -41,9 +41,17 @@ const config: Config = {
           rust: "#A0501F",
           green: "#4A6B3F",
         },
+        // Semantic success color used as `text-green` / `bg-green` / `bg-green-pale`
+        // across pills, survey buttons, and confirmation icons. Extending (not
+        // replacing) Tailwind's palette keeps `green-50`/`green-700` working too.
+        green: {
+          DEFAULT: "#4A6B3F",
+          pale: "#E9F0E5",
+        },
       },
       fontFamily: {
-        sans: ["var(--font-geist)", "ui-sans-serif", "system-ui", "sans-serif"],
+        // NOTE: the geist package registers `--font-geist-sans` / `--font-geist-mono`.
+        sans: ["var(--font-geist-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
         serif: ["var(--font-fraunces)", "ui-serif", "Georgia", "serif"],
         mono: ["var(--font-geist-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
       },

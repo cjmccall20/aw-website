@@ -115,7 +115,7 @@ export function PerformanceDetailView({ id }: { id: string }) {
             <section className="card-padded">
               <h2 className="font-serif text-xl font-semibold">From the requester</h2>
               <blockquote className="mt-3 text-ink italic border-l-4 border-maroon-200 pl-4">
-                "{req.notes}"
+                &ldquo;{req.notes}&rdquo;
               </blockquote>
             </section>
           )}

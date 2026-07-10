@@ -185,7 +185,7 @@ export const PERFORMANCE_REQUESTS: PerformanceRequest[] = [
     requester_first_name: "Linda", requester_last_name: "Whitfield",
     requester_email: "linda@stevensgala.com", requester_phone: "713-555-0102",
     organization: "Stevens Gala Events",
-    event_date: "2026-07-18", event_start_time: "19:00:00", event_end_time: "20:00:00",
+    event_date: "2026-08-22", event_start_time: "19:00:00", event_end_time: "20:00:00",
     audience_size: 280, performance_type: "Wedding reception",
     notes: "Outdoor reception under tent. Bride loves the Midland routine.",
     urgency: "standard",
@@ -196,9 +196,9 @@ export const PERFORMANCE_REQUESTS: PerformanceRequest[] = [
     call_time_minutes_before: 90, return_buffer_minutes: 15,
     status: "polling_closed",
     polling_window_days: 45, min_couples_required: 4,
-    response_deadline: "2026-05-10",
+    response_deadline: "2026-07-08",
     include_in_next_survey: true,
-    created_at: "2026-04-22",
+    created_at: "2026-06-12",
     review_notes: "Strong client (3rd booking). Plus-1 photographer asked for.",
   },
   {
@@ -207,7 +207,7 @@ export const PERFORMANCE_REQUESTS: PerformanceRequest[] = [
     requester_first_name: "Sarah", requester_last_name: "Chen",
     requester_email: "sarah.chen.evt@gmail.com", requester_phone: "512-555-0177",
     organization: "TechFlow Inc.",
-    event_date: "2026-06-04", event_start_time: "20:30:00", event_end_time: "21:15:00",
+    event_date: "2026-09-19", event_start_time: "20:30:00", event_end_time: "21:15:00",
     audience_size: 150, performance_type: "Corporate client event",
     urgency: "quick_answer",
     donation_interest: "750",
@@ -217,9 +217,9 @@ export const PERFORMANCE_REQUESTS: PerformanceRequest[] = [
     call_time_minutes_before: 60, return_buffer_minutes: 15,
     status: "polling",
     polling_window_days: 30, min_couples_required: 3,
-    response_deadline: "2026-05-15",
+    response_deadline: "2026-07-17",
     include_in_next_survey: true,
-    created_at: "2026-05-01",
+    created_at: "2026-06-28",
   },
   {
     id: "pr_003",
@@ -237,9 +237,9 @@ export const PERFORMANCE_REQUESTS: PerformanceRequest[] = [
     call_time_minutes_before: 60, return_buffer_minutes: 10,
     status: "ready_to_poll",
     polling_window_days: 30, min_couples_required: 3,
-    response_deadline: "2026-05-22",
+    response_deadline: "2026-07-22",
     include_in_next_survey: true,
-    created_at: "2026-05-04",
+    created_at: "2026-06-30",
   },
   {
     id: "pr_004",
@@ -258,7 +258,7 @@ export const PERFORMANCE_REQUESTS: PerformanceRequest[] = [
     status: "new",
     polling_window_days: 60, min_couples_required: 6,
     include_in_next_survey: false,
-    created_at: "2026-05-08",
+    created_at: "2026-07-06",
   },
   {
     id: "pr_005",
@@ -293,22 +293,25 @@ export const PRIVATE_LESSON_REQUESTS: PrivateLessonRequest[] = [
 
 // ---------------- Public lessons ----------------
 
+// Real class structure: Country & Western 1-2 and Jitterbug 1-2, 1.5-hour classes,
+// 4-week sessions, $60/couple, partner required. Six sessions per year.
 export const PUBLIC_LESSONS: PublicLesson[] = [
-  { id: "pl_001", class_name: "Two-Step 1", level: "Beginner",    day: "Tuesday",  start_time: "19:00", end_time: "20:00", dates: ["2026-09-08","2026-09-15","2026-09-22","2026-09-29"], instructor_ids: ["m_004","m_003"], visible_to_public: true, active: true, notes: "Walk-in friendly; no partner needed." },
-  { id: "pl_002", class_name: "Two-Step 2", level: "Intermediate", day: "Tuesday",  start_time: "20:00", end_time: "21:00", dates: ["2026-09-08","2026-09-15","2026-09-22","2026-09-29"], instructor_ids: ["m_001","m_002"], visible_to_public: true, active: true },
-  { id: "pl_003", class_name: "Jitterbug",  level: "Intermediate", day: "Thursday", start_time: "19:30", end_time: "20:45", dates: ["2026-09-10","2026-09-17","2026-09-24","2026-10-01"], instructor_ids: ["m_007","m_010"], visible_to_public: true, active: true },
-  { id: "pl_004", class_name: "Swing & Polka Sampler", level: "All Levels", day: "Saturday", start_time: "11:00", end_time: "12:30", dates: ["2026-09-13","2026-09-27","2026-10-11"], instructor_ids: ["m_001","m_002","m_003"], visible_to_public: true, active: true, notes: "Fun mixed-style session." },
+  { id: "pl_001", class_name: "Country & Western 1", level: "Beginner",     day: "Sunday", start_time: "17:30", end_time: "19:00", dates: ["2026-09-13","2026-09-20","2026-09-27","2026-10-04"], instructor_ids: ["m_004","m_003"], price_per_couple: 60, signup_url: "https://tamu.estore.flywire.com", visible_to_public: true, active: true, notes: "Two-step, waltz, and polka basics plus transitions. Partner required to sign up." },
+  { id: "pl_002", class_name: "Country & Western 2", level: "Intermediate", day: "Sunday", start_time: "17:30", end_time: "19:00", dates: ["2026-09-13","2026-09-20","2026-09-27","2026-10-04"], instructor_ids: ["m_001","m_002"], price_per_couple: 60, signup_url: "https://tamu.estore.flywire.com", visible_to_public: true, active: true, notes: "Faster patterns, turns, and styling on top of CW 1. Partner required." },
+  { id: "pl_003", class_name: "Jitterbug 1",         level: "Beginner",     day: "Sunday", start_time: "19:30", end_time: "21:00", dates: ["2026-09-13","2026-09-20","2026-09-27","2026-10-04"], instructor_ids: ["m_007","m_010"], price_per_couple: 60, signup_url: "https://tamu.estore.flywire.com", visible_to_public: true, active: true, notes: "Get your feet off the ground — and safely back down. Partner required." },
+  { id: "pl_004", class_name: "Jitterbug 2",         level: "Intermediate", day: "Sunday", start_time: "19:30", end_time: "21:00", dates: ["2026-09-13","2026-09-20","2026-09-27","2026-10-04"], instructor_ids: ["m_001","m_003"], price_per_couple: 60, signup_url: "https://tamu.estore.flywire.com", visible_to_public: true, active: true, notes: "Bigger flips, dips, and lifts. Jitterbug 1 (or equivalent) recommended. Partner required." },
 ];
 
 // ---------------- Tryouts ----------------
 
+// Tryouts run in the SPRING (informational meeting → mock tryouts → April tryout day).
 export const TRYOUT_CYCLES: TryoutCycle[] = [
   {
     id: "t_001",
-    cycle_name: "Fall 2026 Tryouts",
-    prep_lesson_dates: ["2026-08-25","2026-08-27","2026-09-01","2026-09-03"],
-    tryout_date: "2026-09-06",
-    eligibility_notes: "Open to all Texas A&M students, regardless of dance experience. Couples encouraged but not required.",
+    cycle_name: "Spring 2027 Tryouts",
+    prep_lesson_dates: ["2027-02-01","2027-03-16","2027-03-30"],
+    tryout_date: "2027-04-24",
+    eligibility_notes: "Open to all currently enrolled Texas A&M students. You must try out with a partner — the tryout has a dancing portion (creativity + technique) and an interview portion. Completing the prep events is strongly recommended.",
     signup_url: "/requirements#signup",
     active: true,
   },
@@ -317,12 +320,12 @@ export const TRYOUT_CYCLES: TryoutCycle[] = [
 // ---------------- Calendar events ----------------
 
 export const CALENDAR_EVENTS: CalendarEvent[] = [
-  { id: "ce_001", gcal_event_id: "g_001", event_type: "performance", title: "Wedding · Stevens-Whitfield", description: "Outdoor reception in Brenham.", location_name: "Five Pines Ranch", location_address: "Brenham, TX", start_at: "2026-07-18T16:30:00-05:00", end_at: "2026-07-18T22:15:00-05:00", source_type: "performance_request", source_id: "pr_001", attendee_member_ids: ["m_001","m_002","m_003","m_006","m_007","m_010"] },
-  { id: "ce_002", gcal_event_id: "g_002", event_type: "performance", title: "Corporate · TechFlow",        description: "Client appreciation evening.", location_name: "The Driskill", location_address: "Austin, TX", start_at: "2026-06-04T18:35:00-05:00", end_at: "2026-06-04T23:30:00-05:00", source_type: "performance_request", source_id: "pr_002", attendee_member_ids: ["m_001","m_002","m_003","m_006"] },
-  { id: "ce_003", gcal_event_id: "g_003", event_type: "practice", title: "Team practice", location_name: "Practice space", start_at: "2026-05-18T19:30:00-05:00", end_at: "2026-05-18T21:30:00-05:00", recurrence: "FREQ=WEEKLY;BYDAY=MO", attendee_member_ids: MEMBERS.map(m => m.id) },
-  { id: "ce_004", gcal_event_id: "g_004", event_type: "officer_meeting", title: "Officer meeting", start_at: "2026-05-20T17:00:00-05:00", end_at: "2026-05-20T18:30:00-05:00", recurrence: "FREQ=WEEKLY;BYDAY=WE", attendee_member_ids: ["m_001","m_002","m_003","m_004","m_005"] },
-  { id: "ce_005", gcal_event_id: "g_005", event_type: "public_lesson", title: "Two-Step 1 — Tuesday class", location_name: "Practice space", start_at: "2026-09-08T19:00:00-05:00", end_at: "2026-09-08T20:00:00-05:00", source_type: "public_lesson", source_id: "pl_001", attendee_member_ids: ["m_004","m_003"], recurrence: "FREQ=WEEKLY;BYDAY=TU;COUNT=4" },
-  { id: "ce_006", gcal_event_id: "g_006", event_type: "tryout", title: "Fall 2026 Tryouts", start_at: "2026-09-06T14:00:00-05:00", end_at: "2026-09-06T18:00:00-05:00", source_type: "tryout", source_id: "t_001", attendee_member_ids: [] },
+  { id: "ce_001", gcal_event_id: "g_001", event_type: "performance", title: "Wedding · Stevens-Whitfield", description: "Outdoor reception in Brenham.", location_name: "Five Pines Ranch", location_address: "Brenham, TX", start_at: "2026-08-22T16:30:00-05:00", end_at: "2026-08-22T22:15:00-05:00", source_type: "performance_request", source_id: "pr_001", attendee_member_ids: ["m_001","m_002","m_003","m_006","m_007","m_010"] },
+  { id: "ce_002", gcal_event_id: "g_002", event_type: "performance", title: "Corporate · TechFlow",        description: "Client appreciation evening.", location_name: "The Driskill", location_address: "Austin, TX", start_at: "2026-09-19T18:35:00-05:00", end_at: "2026-09-19T23:30:00-05:00", source_type: "performance_request", source_id: "pr_002", attendee_member_ids: ["m_001","m_002","m_003","m_006"] },
+  { id: "ce_003", gcal_event_id: "g_003", event_type: "practice", title: "Team practice", location_name: "Practice space", start_at: "2026-07-13T19:30:00-05:00", end_at: "2026-07-13T21:30:00-05:00", recurrence: "FREQ=WEEKLY;BYDAY=MO", attendee_member_ids: MEMBERS.map(m => m.id) },
+  { id: "ce_004", gcal_event_id: "g_004", event_type: "officer_meeting", title: "Officer meeting", start_at: "2026-07-15T17:00:00-05:00", end_at: "2026-07-15T18:30:00-05:00", recurrence: "FREQ=WEEKLY;BYDAY=WE", attendee_member_ids: ["m_001","m_002","m_003","m_004","m_005"] },
+  { id: "ce_005", gcal_event_id: "g_005", event_type: "public_lesson", title: "Country & Western 1 — Sunday class", location_name: "Practice space", start_at: "2026-09-13T17:30:00-05:00", end_at: "2026-09-13T19:00:00-05:00", source_type: "public_lesson", source_id: "pl_001", attendee_member_ids: ["m_004","m_003"], recurrence: "FREQ=WEEKLY;BYDAY=SU;COUNT=4" },
+  { id: "ce_006", gcal_event_id: "g_006", event_type: "tryout", title: "Spring 2027 Tryouts", start_at: "2027-04-24T08:00:00-05:00", end_at: "2027-04-24T14:00:00-05:00", source_type: "tryout", source_id: "t_001", attendee_member_ids: [] },
 ];
 
 // ---------------- Resources ----------------
@@ -350,28 +353,30 @@ export const MOVES: Move[] = [
 // ---------------- Email threads ----------------
 
 export const EMAIL_THREADS: EmailThread[] = [
-  { id: "et_001", contact_id: "c_001", subject: "Performance request — Stevens-Whitfield wedding", last_message_at: "2026-04-25T14:22:00Z", last_message_direction: "inbound", participants_emails: ["linda@stevensgala.com", "performance@wranglers.tamu.edu"], related_type: "performance_request", related_id: "pr_001" },
+  { id: "et_001", contact_id: "c_001", subject: "Performance request — Stevens-Whitfield wedding", last_message_at: "2026-06-15T14:22:00Z", last_message_direction: "inbound", participants_emails: ["linda@stevensgala.com", "performance@wranglers.tamu.edu"], related_type: "performance_request", related_id: "pr_001" },
   { id: "et_002", contact_id: "c_001", subject: "RE: 2024 Patel reception thank-you",              last_message_at: "2024-05-19T09:10:00Z", last_message_direction: "outbound", participants_emails: ["linda@stevensgala.com", "performance@wranglers.tamu.edu"] },
   { id: "et_003", contact_id: "c_001", subject: "Booking — Reyes Corporate Gala",                  last_message_at: "2023-09-22T18:00:00Z", last_message_direction: "outbound", participants_emails: ["linda@stevensgala.com", "performance@wranglers.tamu.edu"] },
   { id: "et_004", contact_id: "c_002", subject: "KKG Spring Formal — confirmed",                   last_message_at: "2025-02-12T11:45:00Z", last_message_direction: "outbound", participants_emails: ["social.chair@kkgtamu.example.com"] },
 ];
 
 export const EMAIL_MESSAGES: EmailMessage[] = [
-  { id: "em_001", thread_id: "et_001", direction: "inbound",  from_address: "linda@stevensgala.com",            to_addresses: ["performance@wranglers.tamu.edu"], subject: "Performance request — Stevens-Whitfield wedding", body_text: "Hi y'all — we'd love to have the Wranglers at the Stevens-Whitfield wedding on July 18. Five Pines Ranch in Brenham, outdoor reception under a tent. 280 guests, audience loves the Midland video. Open to $1k donation. Let me know what you need from us.", received_at: "2026-04-22T17:14:00Z" },
-  { id: "em_002", thread_id: "et_001", direction: "outbound", from_address: "performance@wranglers.tamu.edu",   to_addresses: ["linda@stevensgala.com"], subject: "Re: Performance request — Stevens-Whitfield wedding", body_text: "Linda — great to hear from you again. We have your request and are polling the team for availability. Drive time looks like ~78 min from College Station, so we'd need about a 4:30 PM call. Will confirm by May 10. Excited!", received_at: "2026-04-23T15:02:00Z", sent_by_user_id: "u_perf" },
-  { id: "em_003", thread_id: "et_001", direction: "inbound",  from_address: "linda@stevensgala.com",            to_addresses: ["performance@wranglers.tamu.edu"], subject: "Re: Performance request — Stevens-Whitfield wedding", body_text: "Perfect — sounds great. The bride wants the Midland routine if at all possible. Florist is Stems by Sarah, photographer is Bayou Studios. Anything else you need?", received_at: "2026-04-25T14:22:00Z" },
+  { id: "em_001", thread_id: "et_001", direction: "inbound",  from_address: "linda@stevensgala.com",            to_addresses: ["performance@wranglers.tamu.edu"], subject: "Performance request — Stevens-Whitfield wedding", body_text: "Hi y'all — we'd love to have the Wranglers at the Stevens-Whitfield wedding on August 22. Five Pines Ranch in Brenham, outdoor reception under a tent. 280 guests, audience loves the Midland video. Open to $1k donation. Let me know what you need from us.", received_at: "2026-06-12T17:14:00Z" },
+  { id: "em_002", thread_id: "et_001", direction: "outbound", from_address: "performance@wranglers.tamu.edu",   to_addresses: ["linda@stevensgala.com"], subject: "Re: Performance request — Stevens-Whitfield wedding", body_text: "Linda — great to hear from you again. We have your request and are polling the team for availability. Drive time looks like ~78 min from College Station, so we'd need about a 4:30 PM call. Will confirm by July 8. Excited!", received_at: "2026-06-13T15:02:00Z", sent_by_user_id: "u_perf" },
+  { id: "em_003", thread_id: "et_001", direction: "inbound",  from_address: "linda@stevensgala.com",            to_addresses: ["performance@wranglers.tamu.edu"], subject: "Re: Performance request — Stevens-Whitfield wedding", body_text: "Perfect — sounds great. The bride wants the Midland routine if at all possible. Florist is Stems by Sarah, photographer is Bayou Studios. Anything else you need?", received_at: "2026-06-15T14:22:00Z" },
   { id: "em_004", thread_id: "et_002", direction: "outbound", from_address: "performance@wranglers.tamu.edu",   to_addresses: ["linda@stevensgala.com"], subject: "RE: 2024 Patel reception thank-you", body_text: "Linda — sending a thank-you from the whole team. The Patel reception was a blast. Looking forward to working with you again next year. — Maya, PR Officer 2024", received_at: "2024-05-19T09:10:00Z", sent_by_user_id: "u_perf" },
 ];
 
 // ---------------- Videos ----------------
 
+// Real, verified YouTube IDs (official uploads).
 export const VIDEOS: Video[] = [
-  { id: "v_001", youtube_id: "9eyjqJlYa6Q", title_override: "Midland — Burnout (Aggie Wranglers feature)", display_order: 1, category: "Music Videos", featured: true,  source_artist: "Midland" },
-  { id: "v_002", youtube_id: "8gI7Tjt8M-w", title_override: "Randy Rogers Band — I'll Never Get Over You",  display_order: 2, category: "Music Videos", featured: false, source_artist: "Randy Rogers Band" },
-  { id: "v_003", youtube_id: "Z8a9oH_jKp4", title_override: "Ella Langley — Choosin' Texas",                display_order: 3, category: "Music Videos", featured: false, source_artist: "Ella Langley" },
-  { id: "v_004", youtube_id: "dQw4w9WgXcQ", title_override: "Aggie Bonfire performance 2023",               display_order: 1, category: "Top Routines",   featured: true },
-  { id: "v_005", youtube_id: "dQw4w9WgXcQ", title_override: "Houston Livestock Show 2024",                  display_order: 2, category: "Top Routines",   featured: false },
-  { id: "v_006", youtube_id: "dQw4w9WgXcQ", title_override: "TAMU Yell Practice surprise",                  display_order: 1, category: "Behind the Scenes", featured: false },
+  { id: "v_001", youtube_id: "YBCrkFB8nvc", title_override: "Midland — Burn Out (Official Music Video)",                    display_order: 1, category: "Music Videos", featured: true,  source_artist: "Midland" },
+  { id: "v_002", youtube_id: "-PzF01wQYPs", title_override: "Randy Rogers Band — I'll Never Get Over You (Official Video)", display_order: 2, category: "Music Videos", featured: false, source_artist: "Randy Rogers Band" },
+  { id: "v_003", youtube_id: "nUsrYVxrDwI", title_override: "Ella Langley — Choosin' Texas (Official Video)",               display_order: 3, category: "Music Videos", featured: false, source_artist: "Ella Langley" },
+  { id: "v_004", youtube_id: "oDKwE88B4vI", title_override: "Tea and Two Step performance (2025)",                          display_order: 1, category: "Top Routines",   featured: false },
+  { id: "v_005", youtube_id: "aEHLWpntcm8", title_override: "4th of July performance (2024)",                               display_order: 2, category: "Top Routines",   featured: false },
+  { id: "v_006", youtube_id: "pCjjNu9oI9g", title_override: "Disney World — full performance",                              display_order: 3, category: "Top Routines",   featured: false },
+  { id: "v_007", youtube_id: "z_zBDxGpWcU", title_override: "Aggie Wrangler promo video",                                   display_order: 1, category: "Behind the Scenes", featured: false },
 ];
 
 // ---------------- Sponsors ----------------
@@ -386,19 +391,22 @@ export const SPONSORS: Sponsor[] = [
 // ---------------- FAQ ----------------
 
 export const FAQS: FAQ[] = [
-  { id: "f_001", question: "How do public lessons work?",   answer: "Public lessons are weekly drop-in classes at the practice space. No partner required, no prior experience required. Show up, pay through the link, dance.",                category: "Lessons",     display_order: 1 },
-  { id: "f_002", question: "When are tryouts?",             answer: "Tryouts happen each fall. Prep lessons run for two weeks before, free to attend. Check the Tryouts page for current dates.",                                                category: "Tryouts",     display_order: 2 },
-  { id: "f_003", question: "How far in advance should I book a performance?", answer: "We recommend 2-3 months minimum. For larger events (200+ guests) or specific venues, 4-6 months is ideal so we can poll the team properly.", category: "Performances", display_order: 3 },
-  { id: "f_004", question: "Do you charge for performances?", answer: "We're a student organization, not a commercial booking. We accept donations — the request form lets you signal what your organization is comfortable with. Typical donations range $250-$1,000+.", category: "Performances", display_order: 4 },
-  { id: "f_005", question: "Can I take a private lesson?",  answer: "Yes — we offer private lessons for individuals, couples (especially wedding first dances), and small groups. Request one through the form on the Private Lessons page.", category: "Lessons",     display_order: 5 },
-  { id: "f_006", question: "What styles do you teach?",     answer: "Two-step, jitterbug, country swing, polka, and waltz — plus the foundational footwork and partner connection that underlies all of them.",                              category: "Lessons",     display_order: 6 },
+  { id: "f_001", question: "How do public lessons work?",   answer: "Classes meet once a week for 1.5 hours, four weeks per session, and we run six sessions a year (two each in spring, summer, and fall). A session is $60 per couple for all four weeks — about $5 per person per hour. Sign-ups open roughly a month in advance and are first-come, first-served.", category: "Lessons", display_order: 1 },
+  { id: "f_002", question: "Do I need a partner for lessons?", answer: "Yes — public lessons are couple-based, so you must sign up with a partner (line-dance workshops are the exception). Don't have one? Use our partner search to get matched with another solo dancer before the session starts.", category: "Lessons", display_order: 2 },
+  { id: "f_003", question: "What if my partner can't make a week?", answer: "You can bring a substitute partner for a $30 fee, or come 30 minutes early the following week for a free make-up. Make-up time is also available right before or after class.", category: "Lessons", display_order: 3 },
+  { id: "f_004", question: "What styles do you teach?",     answer: "Country & Western 1-2 covers two-step, waltz, and polka. Jitterbug 1-2 covers the Aggie-style jitterbug — flips, dips, and lifts, always challenge-by-choice. Private lessons can also cover country swing and line dances.", category: "Lessons", display_order: 4 },
+  { id: "f_005", question: "Can I take a private lesson?",  answer: "Yes — we offer private lessons for couples (especially wedding first dances), groups, and organizations. Request one through the form on the Private Lessons page and the lessons coordinator will follow up with availability and a quote.", category: "Lessons", display_order: 5 },
+  { id: "f_006", question: "When are tryouts?",             answer: "Tryouts happen each spring — an informational meeting early in the semester, mock tryouts in March, and the real thing in April. You must try out with a partner. Check the Tryouts page for the current cycle's dates.", category: "Tryouts", display_order: 6 },
+  { id: "f_007", question: "Do you charge for performances?", answer: "Performances are completely free of charge — we're a student organization, not a commercial act. We gladly accept donations, which fund travel, uniforms, and team operations; the request form lets you signal what your organization is comfortable with.", category: "Performances", display_order: 7 },
+  { id: "f_008", question: "How far in advance should I book a performance?", answer: "Requests are evaluated 6-8 weeks before the event date and answered within about a week, first-come first-served. For larger events or specific venues, submitting 3-6 months out is ideal so we can poll the team properly.", category: "Performances", display_order: 8 },
+  { id: "f_009", question: "What does a performance look like?", answer: "A typical show runs 5-20 minutes with 3-10 couples: polka routines plus our High Flyin', Death Defyin' Aggie-style jitterbug. We arrive an hour early, and we need roughly 5 square feet per couple — a 12-foot ceiling is recommended for jitterbug.", category: "Performances", display_order: 9 },
 ];
 
 // ---------------- Meeting notes ----------------
 
 export const MEETING_NOTES: MeetingNote[] = [
-  { id: "mn_001", meeting_date: "2026-05-13", meeting_type: "Officer meeting", attendee_member_ids: ["m_001","m_002","m_003","m_004","m_005"], agenda_markdown: "- Stevens-Whitfield polling close\n- TechFlow Austin\n- Tryout prep schedule\n- Sponsor follow-ups", decisions_markdown: "- Confirmed Stevens-Whitfield if we hit 4 couples by Friday\n- Tyler will draft TechFlow follow-up\n- Tryouts: 9/6 confirmed, prep lessons 8/25-9/3", notes_markdown: "Maya raised the question of whether to bring back the Midland routine for Stevens. General agreement: yes if at least 5 couples can run it." },
-  { id: "mn_002", meeting_date: "2026-05-06", meeting_type: "All-team", attendee_member_ids: MEMBERS.slice(0, 12).map(m => m.id), agenda_markdown: "- Summer practice schedule\n- Banquet announcement\n- Upcoming performances", notes_markdown: "Discussed which members are around for summer. About 8 confirmed staying in College Station; 6 traveling/interning." },
+  { id: "mn_001", meeting_date: "2026-07-08", meeting_type: "Officer meeting", attendee_member_ids: ["m_001","m_002","m_003","m_004","m_005"], agenda_markdown: "- Stevens-Whitfield polling close\n- TechFlow Austin\n- Fall lesson session schedule\n- Sponsor follow-ups", decisions_markdown: "- Confirm Stevens-Whitfield if we hit 4 couples by Friday\n- Tyler will draft TechFlow follow-up\n- Fall Session 1 lessons: Sundays 9/13-10/4, publish by 8/15", notes_markdown: "Maya raised the question of whether to bring back the Midland routine for Stevens. General agreement: yes if at least 5 couples can run it." },
+  { id: "mn_002", meeting_date: "2026-06-24", meeting_type: "All-team", attendee_member_ids: MEMBERS.slice(0, 12).map(m => m.id), agenda_markdown: "- Summer practice schedule\n- Banquet recap\n- Upcoming performances", notes_markdown: "Discussed which members are around for summer. About 8 confirmed staying in College Station; 6 traveling/interning." },
 ];
 
 // ---------------- Notify lists ----------------
@@ -417,7 +425,7 @@ export const NOTIFY_SUBSCRIBERS: NotifyListSubscriber[] = [
 ];
 
 export const NOTIFY_CAMPAIGNS: NotifyListCampaign[] = [
-  { id: "nc_001", list_id: "nl_001", subject: "New session of Wranglers public lessons — Fall 2026", body_text: "Hi y'all — we just published the Fall 2026 lesson schedule…", composed_by_id: "u_less", sent_at: "2026-08-12", recipient_count: 184, bounce_count: 2, unsubscribe_count_from_this_send: 1 },
+  { id: "nc_001", list_id: "nl_001", subject: "New session of Wranglers public lessons — Summer 2026", body_text: "Hi y'all — we just published the Summer 2026 lesson schedule…", composed_by_id: "u_less", sent_at: "2026-05-18", recipient_count: 184, bounce_count: 2, unsubscribe_count_from_this_send: 1 },
 ];
 
 // ---------------- Lookups ----------------

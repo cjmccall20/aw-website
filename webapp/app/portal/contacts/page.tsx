@@ -15,7 +15,7 @@ export default function ContactsPage() {
     return CONTACTS.filter(c => {
       if (kind !== "all" && c.kind !== kind) return false;
       if (!q) return true;
-      const hay = `${c.name} ${c.email ?? ""} ${c.phone ?? ""} ${(c.tags ?? []).join(" ")}`.toLowerCase();
+      const hay = `${c.name} ${c.email ?? ""} ${c.phone ?? ""} ${(c.tags ?? []).join(" ")} ${c.notes_markdown ?? ""}`.toLowerCase();
       return hay.includes(q.toLowerCase());
     });
   }, [q, kind]);

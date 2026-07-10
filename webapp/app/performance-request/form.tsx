@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useId } from "react";
 import { CheckCircle2 } from "lucide-react";
 
 type DonationOption = "" | "250" | "500" | "750" | "1000" | "other" | "not_at_this_time";
@@ -156,12 +156,28 @@ export function PerformanceRequestForm() {
 }
 
 function Field({ label, required, help, children }: { label: string; required?: boolean; help?: string; children: React.ReactNode }) {
+  const id = useId();
+  // Associate the label with the control for screen readers + click-to-focus.
+  // Single bare inputs get an explicit id; composite children (radio groups)
+  // contain their own labels, so the heading renders as a span to avoid
+  // invalid nested <label> markup.
+  const isBareControl =
+    React.isValidElement(children) &&
+    typeof children.type === "string" &&
+    ["input", "textarea", "select"].includes(children.type);
+
   return (
     <div>
-      <label className="label">
-        {label} {required && <span className="text-maroon-700">*</span>}
-      </label>
-      {children}
+      {isBareControl ? (
+        <label className="label" htmlFor={id}>
+          {label} {required && <span className="text-maroon-700">*</span>}
+        </label>
+      ) : (
+        <span className="label">
+          {label} {required && <span className="text-maroon-700">*</span>}
+        </span>
+      )}
+      {isBareControl ? React.cloneElement(children as React.ReactElement, { id }) : children}
       {help && <p className="help-text">{help}</p>}
     </div>
   );

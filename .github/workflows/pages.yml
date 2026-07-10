@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - claude/aggie-wranglers-redesign-plan-2oQoo
+      - claude/aggie-wranglers-audit-rebuild-wweg5x
   workflow_dispatch:
 
 permissions:
@@ -29,7 +30,8 @@ jobs:
           node-version: "20"
 
       - name: Install webapp dependencies
-        run: npm install
+        # npm ci gives reproducible installs from the committed lockfile.
+        run: npm ci
         working-directory: webapp
 
       - name: Build static site

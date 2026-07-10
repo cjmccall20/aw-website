@@ -28,7 +28,7 @@ export default function WatchPage() {
               "@type": "VideoObject",
               name: v.title_override,
               embedUrl: `https://www.youtube-nocookie.com/embed/${v.youtube_id}`,
-              uploadDate: "2024-01-01",
+              thumbnailUrl: `https://i.ytimg.com/vi/${v.youtube_id}/hqdefault.jpg`,
               publisher: { "@type": "Organization", name: "Aggie Wranglers" },
             })),
           }),

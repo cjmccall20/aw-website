@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/merchandise" },
 };
 
-const STORE_URL = "https://teespring.com";
+const STORE_URL = "https://tamu.estore.flywire.com";
 
 export default function MerchPage() {
   return (
@@ -16,12 +16,12 @@ export default function MerchPage() {
       <PageHeader
         eyebrow="Merchandise"
         title="Official Wranglers merch."
-        description="Shirts, hats, and event-specific gear. All orders ship from our partner store."
+        description="Team t-shirts ($25) and event-specific gear — including the Rustic 1984, AW Dance Lessons, and Disco Ball designs."
       />
       <section className="section-sm">
         <div className="container-content max-w-2xl text-center">
           <p className="text-lg text-ink-soft">
-            Our merch lives on our external store. Click through to browse.
+            Merch is sold through the university&apos;s official Marketplace store. Click through to browse.
           </p>
           <a href={STORE_URL} target="_blank" rel="noopener noreferrer" className="mt-8 btn-primary btn-lg inline-flex">
             Visit the merch store →

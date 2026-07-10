@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/page-header";
 
 export const metadata: Metadata = {
   title: "History",
-  description: "The history of the Aggie Wranglers — Texas A&M's country-western dance performance team since 1981.",
+  description: "The history of the Aggie Wranglers — Texas A&M's country-western exhibition dance team since 1984.",
   alternates: { canonical: "/history" },
 };
 
@@ -12,7 +12,7 @@ export default function HistoryPage() {
   return (
     <SiteShell>
       <PageHeader
-        eyebrow="Since 1981"
+        eyebrow="Since 1984"
         title="A history of country-western dance at Texas A&M."
         description="The Wranglers were founded to share country-western dance and Aggie spirit with the world. Four decades later — still the mission."
       />
@@ -21,21 +21,34 @@ export default function HistoryPage() {
         <div className="container-content max-w-prose">
           <article className="prose prose-lg max-w-none text-ink-soft prose-headings:font-serif prose-headings:text-ink prose-strong:text-ink prose-a:text-maroon-700">
             <p>
-              <strong>The Aggie Wranglers were founded in 1981</strong> as a way
-              for Texas A&amp;M students to share the country-western tradition
-              with audiences across Texas and beyond. From a small group of
-              dancers practicing in borrowed studio time, the team grew into one
-              of the most recognizable performance groups associated with the
-              university.
+              <strong>The Aggie Wranglers started with an ad in The Battalion.</strong>{" "}
+              In 1984, a Texas A&amp;M student with a dance background put out a
+              call for dancers to perform at that year&apos;s Calvert County
+              Fair. Twenty people showed up; seven couples were chosen. She
+              choreographed the original routines herself — and several of the
+              moves from that first era, like the Donna and the Jesse flip, are
+              still danced by the team today.
             </p>
 
-            <h2>Decades of performance</h2>
+            <h2>Four decades of performance</h2>
             <p>
-              The team has performed at the Houston Livestock Show, on national
-              television, at countless weddings and corporate events, and in
-              music videos with Midland, Randy Rogers Band, and Ella Langley.
-              Every performance is built around the same goal: spread love for
-              Texas A&amp;M and country-western dance.
+              From a county fair to stages far beyond Texas: the team has
+              performed at Aggie Ring Day and Fish Camp, at the Houston
+              Livestock Show and a Houston Texans halftime, aboard Royal
+              Caribbean cruises, at the Cattle Baron&apos;s Ball, for Nobel
+              Laureate meetings in Germany, and at the Texas State
+              Society&apos;s Black Tie and Boots Inaugural Ball in
+              Washington, D.C. When country acts need dancers who actually
+              know what they&apos;re doing, we get the call — music videos with
+              Midland, Randy Rogers Band, and Ella Langley.
+            </p>
+            <p>
+              Every performance is built around the same signature: choreographed
+              high-speed polka routines and the internationally famous
+              Aggie-style jitterbug — the flips, dips, and lifts behind
+              &ldquo;High Flyin&apos;, Death Defyin&apos;.&rdquo; Ask a Wrangler
+              about &ldquo;the Michelle,&rdquo; the overhead lift with a toe
+              touch that&apos;s become a team trademark.
             </p>
 
             <h2>Core values</h2>
@@ -50,11 +63,14 @@ export default function HistoryPage() {
 
             <h2>What today looks like</h2>
             <p>
-              Roughly fifteen students at any given time. Weekly practices,
-              public lessons, private lessons for couples, and a steady cadence
-              of performances across the year. Fall tryouts bring in the next
-              generation; spring banquet celebrates the one that&apos;s
-              graduating.
+              Roughly eighteen students at any given time, chosen through a
+              spring tryout that tests both dancing and character. Weekly
+              practices, six public-lesson sessions a year that teach around
+              3,000 people to two-step, waltz, polka, and jitterbug, private
+              lessons for couples, and a steady cadence of free,
+              donation-supported performances across the year. Spring tryouts
+              bring in the next generation; the annual banquet celebrates the
+              one that&apos;s graduating.
             </p>
           </article>
         </div>

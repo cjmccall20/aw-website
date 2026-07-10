@@ -14,6 +14,17 @@ npm run dev
 
 Then open <http://localhost:3000>.
 
+Checks (both run as part of `npm run build`, which fails on errors):
+
+```bash
+npx tsc --noEmit   # typecheck
+npm run lint       # eslint (next/core-web-vitals)
+```
+
+Mock-data dates are static and were last refreshed July 2026 (fall-2026
+lesson session, spring-2027 tryout cycle). If the demo starts looking stale,
+bump the dates in `lib/mock-data/index.ts` — or better, wire the real backend.
+
 ## What's in here
 
 ### Stack
@@ -68,8 +79,13 @@ webapp/
 ├── package.json
 ├── tailwind.config.ts
 ├── tsconfig.json
-├── next.config.js                ← incl. /our-building → / redirect
+├── next.config.js                ← static export config (basePath for GH Pages)
 └── postcss.config.js
+
+Legacy URLs (`/our-building` → `/`, `/current-team` → `/meet-the-team`) are
+preserved as client-side redirect pages because `output: "export"` strips
+`next.config.js` redirects. When the site moves to Vercel, replace them with
+real 301s in `next.config.js`.
 ```
 
 ## Demo sign-in

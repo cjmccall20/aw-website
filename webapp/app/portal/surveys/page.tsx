@@ -25,7 +25,7 @@ export default function SurveysPage() {
               date={r.event_date}
               location={`${r.venue_name}${r.drive_time_minutes ? ` · ${r.drive_time_minutes} min drive` : ""}`}
               availabilityWindow={r.drive_time_minutes ? buildWindow(r) : undefined}
-              deadline={r.response_deadline ?? "2026-05-22"}
+              deadline={r.response_deadline}
             />
           );
         })}
@@ -35,7 +35,6 @@ export default function SurveysPage() {
             title={`Private lesson · ${r.dance_type ?? "—"}`}
             date={r.preferred_dates ?? "Flexible"}
             location={`${r.group_size} people · ${r.experience_level ?? "—"}`}
-            deadline="2026-05-22"
           />
         ))}
       </div>
@@ -65,7 +64,7 @@ function SurveyItem({ title, date, location, availabilityWindow, deadline }: {
   date: string;
   location: string;
   availabilityWindow?: string;
-  deadline: string;
+  deadline?: string;
 }) {
   return (
     <article className="card-padded">
@@ -77,7 +76,9 @@ function SurveyItem({ title, date, location, availabilityWindow, deadline }: {
             <p className="mt-2 text-sm text-maroon-700 font-medium">You&apos;d need to be available roughly {availabilityWindow}</p>
           )}
         </div>
-        <p className="text-xs text-ink-faint whitespace-nowrap">Respond by {formatDate(deadline, { month: "short", day: "numeric" })}</p>
+        {deadline && (
+          <p className="text-xs text-ink-faint whitespace-nowrap">Respond by {formatDate(deadline, { month: "short", day: "numeric" })}</p>
+        )}
       </div>
       <div className="mt-5 grid grid-cols-3 gap-2">
         <ResponseButton tone="yes"><Check className="h-4 w-4" /> Yes, I&apos;m in</ResponseButton>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useId } from "react";
 import { CheckCircle2 } from "lucide-react";
 
 export function PrivateLessonForm() {
   const [submitted, setSubmitted] = useState(false);
+  const uid = useId();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,22 +31,22 @@ export function PrivateLessonForm() {
         <legend className="font-serif text-xl font-semibold pb-3 mb-2 border-b border-line w-full">Your information</legend>
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
-            <label className="label">First name <span className="text-maroon-700">*</span></label>
-            <input className="input" autoComplete="given-name" required />
+            <label className="label" htmlFor={`${uid}-first`}>First name <span className="text-maroon-700">*</span></label>
+            <input id={`${uid}-first`} className="input" autoComplete="given-name" required />
           </div>
           <div>
-            <label className="label">Last name <span className="text-maroon-700">*</span></label>
-            <input className="input" autoComplete="family-name" required />
+            <label className="label" htmlFor={`${uid}-last`}>Last name <span className="text-maroon-700">*</span></label>
+            <input id={`${uid}-last`} className="input" autoComplete="family-name" required />
           </div>
         </div>
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
-            <label className="label">Email <span className="text-maroon-700">*</span></label>
-            <input className="input" type="email" autoComplete="email" required />
+            <label className="label" htmlFor={`${uid}-email`}>Email <span className="text-maroon-700">*</span></label>
+            <input id={`${uid}-email`} className="input" type="email" autoComplete="email" required />
           </div>
           <div>
-            <label className="label">Phone</label>
-            <input className="input" type="tel" autoComplete="tel" />
+            <label className="label" htmlFor={`${uid}-phone`}>Phone</label>
+            <input id={`${uid}-phone`} className="input" type="tel" autoComplete="tel" />
           </div>
         </div>
       </fieldset>
@@ -54,13 +55,13 @@ export function PrivateLessonForm() {
         <legend className="font-serif text-xl font-semibold pb-3 mb-2 border-b border-line w-full">Lesson details</legend>
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
-            <label className="label">Group size <span className="text-maroon-700">*</span></label>
-            <input className="input" type="number" min={1} max={20} defaultValue={2} required />
+            <label className="label" htmlFor={`${uid}-group`}>Group size <span className="text-maroon-700">*</span></label>
+            <input id={`${uid}-group`} className="input" type="number" min={1} max={20} defaultValue={2} required />
             <p className="help-text">Typically 1 (solo) or 2 (couples). Small groups OK.</p>
           </div>
           <div>
-            <label className="label">Dance style of interest</label>
-            <select className="select" defaultValue="">
+            <label className="label" htmlFor={`${uid}-style`}>Dance style of interest</label>
+            <select id={`${uid}-style`} className="select" defaultValue="">
               <option value="" disabled>Choose one…</option>
               <option>Wedding first dance</option>
               <option>Two-step</option>
@@ -73,8 +74,8 @@ export function PrivateLessonForm() {
           </div>
         </div>
         <div>
-          <label className="label">Experience level</label>
-          <select className="select" defaultValue="">
+          <label className="label" htmlFor={`${uid}-exp`}>Experience level</label>
+          <select id={`${uid}-exp`} className="select" defaultValue="">
             <option value="" disabled>Choose one…</option>
             <option>Total beginner</option>
             <option>Some experience</option>
@@ -83,12 +84,12 @@ export function PrivateLessonForm() {
           </select>
         </div>
         <div>
-          <label className="label">When do you need to be ready by?</label>
-          <input className="input" type="text" placeholder="e.g. our wedding is October 18 / no rush" />
+          <label className="label" htmlFor={`${uid}-ready`}>When do you need to be ready by?</label>
+          <input id={`${uid}-ready`} className="input" type="text" placeholder="e.g. our wedding is October 18 / no rush" />
         </div>
         <div>
-          <label className="label">Anything else?</label>
-          <textarea className="textarea" rows={4} placeholder="Specific song, particular goal, scheduling constraints..." />
+          <label className="label" htmlFor={`${uid}-notes`}>Anything else?</label>
+          <textarea id={`${uid}-notes`} className="textarea" rows={4} placeholder="Specific song, particular goal, scheduling constraints..." />
         </div>
       </fieldset>
 

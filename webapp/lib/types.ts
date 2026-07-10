@@ -194,6 +194,8 @@ export interface PublicLesson {
   dates: ISODate[];
   instructor_ids: ID[];
   signup_url?: string;
+  /** Whole-session price per couple (lessons are couple-based; $60/couple for a 4-week session). */
+  price_per_couple?: number;
   visible_to_public: boolean;
   publish_at?: ISODate;
   active: boolean;

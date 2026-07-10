@@ -38,6 +38,7 @@ const NAV: NavItem[] = [
       { label: "FAQ", href: "/faq" },
       { label: "Sponsorships", href: "/sponsorships" },
       { label: "Banquet", href: "/banquet" },
+      { label: "Contact", href: "/contact" },
     ],
   },
   { label: "Watch", href: "/watch" },
@@ -90,9 +91,17 @@ export function SiteNav() {
                 className="relative"
                 onMouseEnter={() => item.children && setOpenMenu(item.label)}
                 onMouseLeave={() => setOpenMenu(null)}
+                // Keyboard support: open on focus within, close when focus leaves or on Escape.
+                onFocus={() => item.children && setOpenMenu(item.label)}
+                onBlur={e => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpenMenu(null);
+                }}
+                onKeyDown={e => { if (e.key === "Escape") setOpenMenu(null); }}
               >
                 <Link
                   href={item.href}
+                  aria-expanded={item.children ? openMenu === item.label : undefined}
+                  aria-haspopup={item.children ? "menu" : undefined}
                   className={cn(
                     "inline-flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                     active
@@ -155,23 +164,43 @@ export function SiteNav() {
           className="md:hidden bg-white border-b border-line shadow-lifted animate-fade-in"
         >
           <ul className="container-content py-4 space-y-1">
-            {NAV.flatMap(item => [
-              item,
-              ...(item.children ?? []),
-            ]).map(item => (
-              <li key={item.href + item.label}>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "block px-3 py-2.5 rounded-md text-base font-medium transition-colors",
-                    pathname === item.href
-                      ? "text-maroon-700 bg-maroon-50"
-                      : "text-ink-soft hover:text-ink hover:bg-line-subtle",
-                  )}
-                >
-                  {item.label}
-                </Link>
-              </li>
+            {NAV.map(item => (
+              item.children ? (
+                <li key={item.label}>
+                  <p className="px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wider text-ink-faint">{item.label}</p>
+                  <ul className="space-y-0.5">
+                    {item.children.map(c => (
+                      <li key={c.href}>
+                        <Link
+                          href={c.href}
+                          className={cn(
+                            "block px-3 py-2.5 rounded-md text-base font-medium transition-colors",
+                            pathname === c.href
+                              ? "text-maroon-700 bg-maroon-50"
+                              : "text-ink-soft hover:text-ink hover:bg-line-subtle",
+                          )}
+                        >
+                          {c.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ) : (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "block px-3 py-2.5 rounded-md text-base font-medium transition-colors",
+                      pathname === item.href
+                        ? "text-maroon-700 bg-maroon-50"
+                        : "text-ink-soft hover:text-ink hover:bg-line-subtle",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              )
             ))}
             <li className="pt-4 mt-4 border-t border-line flex flex-col gap-2">
               <Link href="/portal" className="btn-secondary justify-center">Sign in</Link>
