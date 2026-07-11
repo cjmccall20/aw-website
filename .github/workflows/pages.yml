@@ -39,6 +39,9 @@ jobs:
         working-directory: webapp
         env:
           NODE_ENV: production
+          # Enables the /aw-website basePath — Pages serves from a subpath,
+          # unlike Vercel/local which serve from the domain root.
+          GITHUB_PAGES: "true"
 
       - name: Stage Pages site
         # The Next.js static export goes to webapp/out. We also keep the legacy
