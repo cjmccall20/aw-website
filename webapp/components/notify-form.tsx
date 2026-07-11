@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Bell, CheckCircle2 } from "lucide-react";
+import { subscribeToNotifyList } from "@/lib/actions";
 
 interface Props {
   listKey: "public_lessons" | "tryouts";
@@ -29,8 +30,7 @@ export function NotifyForm({ listKey, heading, description, variant = "card" }: 
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // TODO: POST /api/notify-list/subscribe { list_key: listKey, email, first_name }
-    //  → creates notify_list_subscribers row, sends auto-reply confirmation
+    subscribeToNotifyList(listKey, email, firstName);
     setSubmitted(true);
   }
 
@@ -40,9 +40,9 @@ export function NotifyForm({ listKey, heading, description, variant = "card" }: 
         <div className="flex items-start gap-4">
           <CheckCircle2 className="h-6 w-6 text-green flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-serif text-xl">You're on the list.</p>
+            <p className="font-serif text-xl">You&apos;re on the list.</p>
             <p className="mt-1 text-sm text-ink-soft">
-              We'll email you from <code className="text-xs">lessons@aggiewranglers.com</code> when the next session is scheduled. Check your inbox for a confirmation.
+              We&apos;ll email you from <code className="text-xs">lessons@aggiewranglers.com</code> when the next session is scheduled. Check your inbox for a confirmation.
             </p>
           </div>
         </div>

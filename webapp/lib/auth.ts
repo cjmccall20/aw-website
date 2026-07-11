@@ -1,24 +1,23 @@
-// Client-side demo auth: pick a user from /portal/login → store id in localStorage.
-// When Supabase comes online this gets replaced with real session reads.
+// Session helpers. Thin wrappers over lib/store's session so older call sites
+// keep working; new code should prefer useSessionUser()/signIn() from store.
 
-import { DEMO_USERS } from "@/lib/mock-data";
+import { getDB, getSessionUser, signIn, signOut } from "@/lib/store";
 import type { User } from "@/lib/types";
-
-const STORAGE_KEY = "aw.demo.user_id";
 
 export function getDemoUser(): User | null {
   if (typeof window === "undefined") return null;
-  const id = window.localStorage.getItem(STORAGE_KEY);
+  // Session id is hydrated lazily; read storage directly for pre-effect callers.
+  const id = window.localStorage.getItem("aw.session.user_id");
   if (!id) return null;
-  return DEMO_USERS.find(u => u.id === id) ?? null;
+  return getDB().users.find(u => u.id === id) ?? getSessionUser();
 }
 
 export function setDemoUser(userId: string) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, userId);
+  signIn(userId);
 }
 
 export function clearDemoUser() {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(STORAGE_KEY);
+  signOut();
 }

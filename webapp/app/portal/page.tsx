@@ -5,26 +5,21 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getDemoUser } from "@/lib/auth";
+import { useSessionUser } from "@/lib/store";
 import { Loader2 } from "lucide-react";
 import { SignIn } from "./sign-in";
 
 export default function PortalIndex() {
   const router = useRouter();
-  const [checking, setChecking] = useState(true);
-  const [signedIn, setSignedIn] = useState(false);
+  const user = useSessionUser();
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
-    const user = getDemoUser();
-    if (user) {
-      setSignedIn(true);
-      router.replace("/portal/dashboard");
-    } else {
-      setChecking(false);
-    }
-  }, [router]);
+    if (mounted && user) router.replace("/portal/dashboard");
+  }, [mounted, user, router]);
 
-  if (checking || signedIn) {
+  if (!mounted || user) {
     return (
       <main className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-ink-faint" />

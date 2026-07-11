@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
+import { assetPath } from "@/lib/utils";
 import { SiteShell } from "@/components/site-shell";
 import { PageHeader } from "@/components/page-header";
 import { Heart, Users, Music, ArrowRight } from "lucide-react";
@@ -19,6 +21,16 @@ export default function PrivateLessonsPage() {
         title="One-on-one instruction from working performers."
         description="Whether you're prepping for your wedding's first dance, a couples date night, or just trying to actually learn this — we'll meet you where you are."
       />
+      <section className="container-content -mt-8 sm:-mt-10 relative z-10">
+        <div className="relative aspect-[3/1] rounded-2xl overflow-hidden shadow-lifted">
+          <Image
+            src={assetPath("/images/couple-portrait.jpg")}
+            alt="A Wrangler couple in uniform among the columns of the Administration Building"
+            fill sizes="(min-width: 1180px) 1116px, 100vw"
+            className="object-cover object-[50%_30%]"
+          />
+        </div>
+      </section>
       <section className="section">
         <div className="container-content grid lg:grid-cols-3 gap-6">
           <Feature

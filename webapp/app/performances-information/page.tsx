@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
+import { assetPath } from "@/lib/utils";
 import { SiteShell } from "@/components/site-shell";
 import { PageHeader } from "@/components/page-header";
 import { ArrowRight } from "lucide-react";
@@ -20,14 +22,40 @@ export default function PerformancesInfoPage() {
         description="What to know before requesting a performance. The short version: tell us about your event, we'll handle the rest."
       />
 
+      <section className="container-content -mt-8 sm:-mt-10 relative z-10">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="relative aspect-[16/9] rounded-2xl overflow-hidden shadow-lifted">
+            <Image
+              src={assetPath("/images/performance-swing-dance.jpg")}
+              alt="Six Wrangler couples swing dancing on a pavilion stage, skirts twirling"
+              fill sizes="(min-width: 640px) 50vw, 100vw"
+              className="object-cover"
+            />
+          </div>
+          <div className="relative aspect-[16/9] rounded-2xl overflow-hidden shadow-lifted">
+            <Image
+              src={assetPath("/images/performance-lifts-outdoor.jpg")}
+              alt="Four couples performing lifts and back-bend dips at an outdoor event"
+              fill sizes="(min-width: 640px) 50vw, 100vw"
+              className="object-cover"
+            />
+          </div>
+        </div>
+      </section>
       <section className="section-sm">
         <div className="container-content max-w-3xl space-y-12">
           <Block title="What we do">
             <p>
-              We perform high-energy country-western dance routines — usually 5
-              to 15 minutes — that feature partner work, jitt moves, aerials,
-              and the kind of moments wedding photographers will thank you for.
-              We can also stay after the routine to dance socially with guests.
+              A typical show runs 5 to 20 minutes with 3 to 10 couples: two
+              high-speed polka routines plus our High Flyin&apos;,
+              Death Defyin&apos;, internationally famous Aggie-style jitterbug —
+              flips, dips, lifts, and the kind of moments wedding photographers
+              will thank you for. We can also stay after the routine to dance
+              socially with guests, teach a short lesson, or set up a promo table.
+            </p>
+            <p>
+              Logistics: we arrive about an hour early, need roughly 5 square
+              feet per couple, and recommend a 12-foot ceiling for the jitterbug.
             </p>
           </Block>
 
@@ -43,9 +71,11 @@ export default function PerformancesInfoPage() {
 
           <Block title="How far in advance">
             <p>
-              We recommend at least 2–3 months of notice. For larger events
-              (200+ guests) or specific venues, 4–6 months is ideal so we can
-              poll the team properly and lock in a strong roster.
+              Requests are evaluated 6–8 weeks before the event date and
+              answered within about a week, first-come first-served. For larger
+              events (200+ guests) or specific venues, submitting 3–6 months out
+              is ideal so we can poll the team properly and lock in a strong
+              roster.
             </p>
             <p>
               If you have a quick-turnaround request, mark it as &ldquo;quick
@@ -53,14 +83,14 @@ export default function PerformancesInfoPage() {
             </p>
           </Block>
 
-          <Block title="Donations">
+          <Block title="Performances are free — donations welcome">
             <p>
               We&apos;re a student organization, not a commercial booking
-              service. We accept donations rather than charging fees. The
-              request form lets you indicate what your organization is
-              comfortable with ($250, $500, $750, $1,000, Other, or Not at this
-              time). Donations help fund team activities — travel, costumes,
-              recruiting, banquet.
+              service. Performances are completely free of charge; we gladly
+              accept donations instead. The request form lets you indicate what
+              your organization is comfortable with ($250, $500, $750, $1,000,
+              Other, or Not at this time). Donations fund travel, uniforms,
+              recruiting, and the banquet.
             </p>
           </Block>
 

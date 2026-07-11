@@ -9,19 +9,21 @@ export function SiteFooter() {
         <div className="grid gap-12 md:grid-cols-12">
           <div className="md:col-span-5">
             <p className="font-serif text-3xl text-white">Aggie Wranglers</p>
-            <p className="mt-2 italic text-cream-300 text-lg">High Flyin', Death Defyin'</p>
+            <p className="mt-2 italic text-cream-300 text-lg">High Flyin&apos;, Death Defyin&apos;</p>
             <p className="mt-6 text-sm leading-relaxed max-w-sm text-cream-300/80">
-              Texas A&amp;M&rsquo;s nationally recognized country-western dance
-              performance team. Spreading love for Texas A&amp;M through dance
-              since 1981.
+              Spreading our love for Texas A&amp;M by teaching and performing our
+              distinctive style of country-western dance — since 1984.
             </p>
             <div className="mt-6 flex gap-3">
               <SocialLink href="https://instagram.com/aggiewranglers" label="Instagram"><Instagram className="h-4 w-4" /></SocialLink>
               <SocialLink href="https://www.tiktok.com/@aggiewranglers" label="TikTok">
                 <span className="text-xs font-bold">TT</span>
               </SocialLink>
-              <SocialLink href="https://youtube.com/@aggiewranglers" label="YouTube"><Youtube className="h-4 w-4" /></SocialLink>
-              <SocialLink href="https://facebook.com/aggiewranglers" label="Facebook"><Facebook className="h-4 w-4" /></SocialLink>
+              <SocialLink href="https://www.youtube.com/channel/UCr2D6VDWyRtjVwkAgV4FOSA" label="YouTube"><Youtube className="h-4 w-4" /></SocialLink>
+              <SocialLink href="https://facebook.com/AggieWranglers" label="Facebook"><Facebook className="h-4 w-4" /></SocialLink>
+              <SocialLink href="https://x.com/AggieWranglers" label="X (Twitter)">
+                <span className="text-xs font-bold">𝕏</span>
+              </SocialLink>
             </div>
           </div>
 
@@ -43,7 +45,8 @@ export function SiteFooter() {
             <FooterLink href="/watch">Watch</FooterLink>
             <FooterLink href="/faq">FAQ</FooterLink>
             <FooterLink href="/banquet">Banquet</FooterLink>
-            <FooterLink href="https://teespring.com" external>Merchandise</FooterLink>
+            <FooterLink href="/merchandise">Merchandise</FooterLink>
+            <FooterLink href="/contact">Contact</FooterLink>
           </FooterCol>
         </div>
 

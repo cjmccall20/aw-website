@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { PortalShell } from "@/components/portal/portal-shell";
-import { PERFORMANCE_REQUESTS, CONTACTS, byId } from "@/lib/mock-data";
+import { Modal, TextField, SelectField } from "@/components/portal/ui";
+import { useStore, useAccess } from "@/lib/store";
+import { createPerformanceRequest } from "@/lib/actions";
 import { formatDate, cn } from "@/lib/utils";
-import { Filter, ArrowRight, Zap } from "lucide-react";
+import { Filter, ArrowRight, Zap, Plus } from "lucide-react";
 
 const STATUS_LABEL: Record<string, string> = {
   new: "New", under_review: "Under review", ready_to_poll: "Ready to poll",
@@ -21,8 +23,11 @@ const STATUS_PILL: Record<string, string> = {
 };
 
 export default function PerformanceManagementPage() {
+  const db = useStore();
+  const canEdit = useAccess("performance_management") === "edit";
   const [filter, setFilter] = useState<string>("all");
-  const requests = PERFORMANCE_REQUESTS;
+  const [logging, setLogging] = useState(false);
+  const requests = [...db.performanceRequests].sort((a, b) => b.created_at.localeCompare(a.created_at));
 
   const filtered = filter === "all"
     ? requests
@@ -38,9 +43,17 @@ export default function PerformanceManagementPage() {
 
   return (
     <PortalShell tabKey="performance_management" title="Performance Management">
-      <p className="text-ink-soft -mt-6 mb-8">
-        Intake → review → Wednesday survey → response window → officer manually confirms or declines via TAMU Outlook.
-      </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap -mt-6 mb-8">
+        <p className="text-ink-soft max-w-2xl">
+          Intake → review → Wednesday survey → response window → officer manually confirms or declines via TAMU Outlook.
+        </p>
+        {canEdit && (
+          <button onClick={() => setLogging(true)} className="btn-primary text-sm" data-testid="log-request">
+            <Plus className="h-4 w-4" /> Log a request
+          </button>
+        )}
+      </div>
+      {logging && <LogRequestModal onClose={() => setLogging(false)} />}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
@@ -91,7 +104,7 @@ export default function PerformanceManagementPage() {
           </thead>
           <tbody className="divide-y divide-line">
             {filtered.map(r => {
-              const contact = byId(CONTACTS, r.contact_id);
+              const contact = db.contacts.find(c => c.id === r.contact_id);
               return (
                 <tr key={r.id} className="hover:bg-cream-200/40 transition-colors">
                   <td className="px-4 py-3 text-ink">
@@ -117,7 +130,7 @@ export default function PerformanceManagementPage() {
                       : `$${r.donation_interest}`}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Link href={`/portal/performance-management/${r.id}`} className="inline-flex items-center gap-1 text-maroon-700 hover:text-maroon-800 font-medium">
+                    <Link href={`/portal/performance-management/detail?id=${r.id}`} className="inline-flex items-center gap-1 text-maroon-700 hover:text-maroon-800 font-medium">
                       View <ArrowRight className="h-3.5 w-3.5" />
                     </Link>
                   </td>
@@ -128,6 +141,57 @@ export default function PerformanceManagementPage() {
         </table>
       </div>
     </PortalShell>
+  );
+}
+
+function LogRequestModal({ onClose }: { onClose: () => void }) {
+  const [f, setF] = useState({
+    first_name: "", last_name: "", email: "", phone: "", organization: "",
+    event_date: "", event_start_time: "19:00", event_end_time: "19:30",
+    venue_name: "", venue_formatted_address: "", performance_type: "Wedding reception",
+    notes: "",
+  });
+  const set = (k: string) => (v: string) => setF(prev => ({ ...prev, [k]: v }));
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    createPerformanceRequest({
+      ...f,
+      urgency: "standard",
+      donation_interest: "none",
+      notes: f.notes ? `${f.notes} (logged manually by officer)` : "(logged manually by officer)",
+    });
+    onClose();
+  }
+
+  return (
+    <Modal title="Log a performance request" onClose={onClose} wide>
+      <p className="text-xs text-ink-faint mb-4">For requests that came in by phone or in person. The public form on the website feeds this same inbox.</p>
+      <form onSubmit={submit} className="space-y-4">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <TextField label="First name" value={f.first_name} onChange={set("first_name")} required />
+          <TextField label="Last name" value={f.last_name} onChange={set("last_name")} required />
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <TextField label="Email" type="email" value={f.email} onChange={set("email")} required />
+          <TextField label="Phone" type="tel" value={f.phone} onChange={set("phone")} />
+        </div>
+        <TextField label="Organization" value={f.organization} onChange={set("organization")} />
+        <div className="grid sm:grid-cols-3 gap-4">
+          <TextField label="Event date" type="date" value={f.event_date} onChange={set("event_date")} required />
+          <TextField label="Start" type="time" value={f.event_start_time} onChange={set("event_start_time")} required />
+          <TextField label="End" type="time" value={f.event_end_time} onChange={set("event_end_time")} required />
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <TextField label="Venue name" value={f.venue_name} onChange={set("venue_name")} required />
+          <TextField label="Venue address" value={f.venue_formatted_address} onChange={set("venue_formatted_address")} />
+        </div>
+        <SelectField label="Performance type" value={f.performance_type} onChange={set("performance_type")}
+          options={["Wedding reception", "Corporate event", "Festival / fair", "Fundraiser / gala", "Music video / press", "Private party", "Other"].map(v => ({ value: v, label: v }))} />
+        <TextField label="Notes" value={f.notes} onChange={set("notes")} />
+        <button type="submit" className="btn-primary w-full">Log request</button>
+      </form>
+    </Modal>
   );
 }
 

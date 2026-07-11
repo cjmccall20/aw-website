@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
-const isProd = process.env.NODE_ENV === "production";
-// When building for GitHub Pages, the site lives at /aw-website on the org domain.
-// In dev (npm run dev), basePath is empty so everything works at localhost:3000/.
-const basePath = isProd ? "/aw-website" : "";
+// Only the GitHub Pages deployment lives under /aw-website (the workflow sets
+// GITHUB_PAGES=true). Vercel and local dev serve from the domain root, so the
+// basePath must stay empty there or every asset URL breaks.
+const basePath = process.env.GITHUB_PAGES === "true" ? "/aw-website" : "";
 
 const nextConfig = {
   output: "export",
@@ -11,10 +11,10 @@ const nextConfig = {
   images: { unoptimized: true, remotePatterns: [{ protocol: "https", hostname: "**" }] },
   // GH Pages adds trailing slashes by default; opt in to match URLs cleanly.
   trailingSlash: true,
-  // This is a preview deployment — don't fail the build on lint/type warnings.
-  // Re-enable strict checking when shipping to real production.
-  eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: true },
+  // Fail the build on type errors and lint errors — these were previously
+  // ignored "for the first deploy" and promptly hid two real type errors.
+  eslint: { ignoreDuringBuilds: false },
+  typescript: { ignoreBuildErrors: false },
   // Make basePath available to client code (for things like prefixing /portal links from server components).
   env: { NEXT_PUBLIC_BASE_PATH: basePath },
 };

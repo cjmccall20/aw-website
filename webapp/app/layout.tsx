@@ -20,7 +20,7 @@ const SITE_URL = "https://aggiewranglers.com";
 const TEAM_NAME = "Aggie Wranglers";
 const TAGLINE = "High Flyin', Death Defyin'";
 const DESCRIPTION =
-  "Texas A&M's nationally recognized country-western dance performance team. Public lessons, private lessons, performance bookings, and tryouts — request below.";
+  "Texas A&M's premier country-western exhibition dance team, est. 1984. Public lessons, private lessons, free performance bookings, and spring tryouts.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   keywords: [
     "Aggie Wranglers", "Texas A&M dance team", "country western dance",
     "two-step lessons College Station", "TAMU performance team",
-    "jitterbug", "swing dance", "country swing", "performance booking",
+    "jitterbug", "polka", "waltz", "country swing", "performance booking",
     "wedding dance lessons", "tryouts",
   ],
   authors: [{ name: TEAM_NAME }],
@@ -82,7 +82,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               "@context": "https://schema.org",
               "@type": "PerformingGroup",
               name: TEAM_NAME,
-              alternateName: "AW",
+              alternateName: "Fightin' Texas Aggie Wranglers",
+              foundingDate: "1984",
               url: SITE_URL,
               slogan: TAGLINE,
               description: DESCRIPTION,
@@ -94,8 +95,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               sameAs: [
                 "https://instagram.com/aggiewranglers",
                 "https://tiktok.com/@aggiewranglers",
-                "https://youtube.com/@aggiewranglers",
-                "https://facebook.com/aggiewranglers",
+                "https://www.youtube.com/channel/UCr2D6VDWyRtjVwkAgV4FOSA",
+                "https://facebook.com/AggieWranglers",
+                "https://x.com/AggieWranglers",
               ],
               contactPoint: {
                 "@type": "ContactPoint",

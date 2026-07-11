@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { getDemoUser, clearDemoUser } from "@/lib/auth";
-import { ALL_TABS, STATUSES, effectiveAccess } from "@/lib/mock-data";
+import { ALL_TABS } from "@/lib/mock-data";
+import { useStore, useSessionUser, accessFor, signOut } from "@/lib/store";
 import type { User } from "@/lib/types";
 import { initials, placeholderColor, cn } from "@/lib/utils";
 import {
@@ -40,25 +40,24 @@ export function PortalShell({ children, tabKey, title, breadcrumb }: {
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const db = useStore();
+  const user = useSessionUser();
+  const [mounted, setMounted] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
+  useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
-    const u = getDemoUser();
-    if (!u) router.replace("/portal");
-    else setUser(u);
-    setLoading(false);
-  }, [router]);
+    if (mounted && !user) router.replace("/portal");
+  }, [mounted, user, router]);
 
   useEffect(() => { setMobileNavOpen(false); }, [pathname]);
 
-  if (loading || !user) {
+  if (!mounted || !user) {
     return <div className="min-h-screen bg-cream flex items-center justify-center text-ink-faint">Loading…</div>;
   }
 
   // Gate this tab
-  const access = effectiveAccess(user.status_keys, tabKey);
+  const access = accessFor(db, user.status_keys, tabKey);
   if (access === "none" && tabKey !== "dashboard") {
     return (
       <Shell user={user} mobileNavOpen={mobileNavOpen} setMobileNavOpen={setMobileNavOpen}>
@@ -111,14 +110,15 @@ function Shell({ user, children, mobileNavOpen, setMobileNavOpen }: {
 function Sidebar({ user, mobileOpen, onClose }: { user: User; mobileOpen: boolean; onClose: () => void }) {
   const router = useRouter();
   const pathname = usePathname();
+  const db = useStore();
 
-  function signOut() {
-    clearDemoUser();
+  function handleSignOut() {
+    signOut();
     router.push("/portal");
   }
 
   const statusLabels = user.status_keys
-    .map(k => STATUSES.find(s => s.key === k)?.display_name ?? k);
+    .map(k => db.permissionStatuses.find(s => s.key === k)?.display_name ?? k);
 
   return (
     <aside
@@ -135,10 +135,10 @@ function Sidebar({ user, mobileOpen, onClose }: { user: User; mobileOpen: boolea
           <Link href="/" className="block mt-1 text-xs text-ink-faint hover:text-ink-soft">← Public site</Link>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-3 px-3">
+        <nav aria-label="Portal navigation" className="flex-1 overflow-y-auto py-3 px-3">
           <ul className="space-y-0.5">
             {ALL_TABS.map(t => {
-              const access = effectiveAccess(user.status_keys, t.key);
+              const access = accessFor(db, user.status_keys, t.key);
               const visible = access !== "none";
               if (!visible) return null;
               const Icon = TAB_ICONS[t.key] ?? LayoutDashboard;
@@ -178,7 +178,7 @@ function Sidebar({ user, mobileOpen, onClose }: { user: User; mobileOpen: boolea
               <p className="text-xs text-ink-faint truncate">{statusLabels.join(" · ")}</p>
             </div>
           </div>
-          <button onClick={signOut} className="mt-1 w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-ink-soft hover:text-ink hover:bg-cream-200">
+          <button onClick={handleSignOut} className="mt-1 w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-ink-soft hover:text-ink hover:bg-cream-200">
             <LogOut className="h-4 w-4" /> Sign out
           </button>
         </div>
