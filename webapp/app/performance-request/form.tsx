@@ -197,7 +197,7 @@ function Field({ label, required, help, children }: { label: string; required?: 
           {label} {required && <span className="text-maroon-700">*</span>}
         </span>
       )}
-      {isBareControl ? React.cloneElement(children as React.ReactElement, { id }) : children}
+      {isBareControl ? React.cloneElement(children as React.ReactElement<any>, { id }) : children}
       {help && <p className="help-text">{help}</p>}
     </div>
   );
