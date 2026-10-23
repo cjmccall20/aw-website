@@ -1,5 +1,9 @@
 import type { MetadataRoute } from "next";
 
+// Metadata routes are dynamic by default in Next.js 15. Static export requires
+// them to be generated at build time, which matches the Next 14 behavior.
+export const dynamic = "force-static";
+
 const BASE = "https://aggiewranglers.com";
 
 export default function sitemap(): MetadataRoute.Sitemap {
